@@ -1,0 +1,246 @@
+# -- import packages: --------------------------------------------------------------------
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from typing import Union
+
+#----------------------------
+# Data Exploration
+#----------------------------
+def missing_barplot(df: pd.DataFrame, ax: Union[plt.axes, None] = None, **barplot_kwargs):
+    """Missing barplot.
+
+    Args:
+        df (pd.DataFrame): input dataframe
+        ax (Union[plt.axes, None], optional): matplotlib axis to include. Defaults to None.
+    """
+    if ax is None:
+        fig,ax = plt.subplots(figsize=(3,7))
+
+    pd.DataFrame(
+        df.isna().sum().sort_values(ascending=False) / df.shape[0],
+        columns=['% Missing']
+    ).plot.barh(ax=ax, width=0.8, edgecolor='k', **barplot_kwargs)
+
+    ax.legend().remove()
+    ax.set_xlabel("% Missing", fontsize=12)
+
+
+#----------------------------
+# Dimensionality Reduction
+#----------------------------
+# TODO
+# Scatter
+    
+# def plot_pca(P_df, pca, c=None, cohort_s=None, cohort_colors=None, cohort_args=None, order=[1,2,3], outliers=None, title='',
+#     vmin=None, vmax=None, alpha=1, lw=0, s=30, cmap=plt.cm.Spectral_r, cticks=None, cticklabels=None, clabel='',
+#     show_legend=True, show_ax2=True):
+#     """
+#     cohort_s: Series encoding cohorts
+#     cohort_colors: dict
+#     Modes:
+#     """
+#     if cohort_s is not None:
+#         cohorts = cohort_s.unique()
+#         nc = len(cohorts)
+#         if cohort_colors is None and cohort_args is None:
+#             # cohort_colors = {i:j for i,j in zip(cohorts, cm.get_cmap(cmap, nc)(np.arange(nc)))}
+#             cohort_colors = {i:j for i,j in zip(cohorts, sns.husl_palette(nc, s=1, l=0.6))}
+#         if cohort_args is None:
+#             cohort_args = {}
+#             for k in np.unique(cohort_s):
+#                 cohort_args[k] = {'color': cohort_colors[k], 'marker':'o', 'edgecolor':'none', 's':s}
+
+#     if show_ax2:
+#         fig = plt.figure(facecolor=(1,1,1), figsize=(10.5,5.5))
+#         ax1 = fig.add_axes(np.array([1/10.5, 0.75/5.5, 4/10.5, 4/5.5]))
+#     else:
+#         fig = plt.figure(facecolor=(1,1,1), figsize=(5.5,5.5))
+#         ax1 = fig.add_axes(np.array([1/5.5, 0.75/5.5, 4/5.5, 4/5.5]))
+#     if cohort_s is None:  # c[P_df.index]
+#         sa = ax1.scatter(P_df[order[1]-1], P_df[order[0]-1], c=c, cmap=cmap, vmin=vmin, vmax=vmax, lw=lw, alpha=alpha, s=s)
+#     else:
+#         for k in np.unique(cohort_s):
+#         # for k in cohort_s.unique():
+#             i = cohort_s[cohort_s==k].index
+#             ax1.scatter(P_df.loc[i,order[1]-1], P_df.loc[i,order[0]-1], alpha=alpha, label=k, **cohort_args[k])
+#     format_plot(ax1, fontsize=10)
+#     ax1.set_xlabel('PC {0} ({1:.2f}%)'.format(order[1], pca.explained_variance_ratio_[order[1]-1]*100), fontsize=12)
+#     ax1.set_ylabel('PC {0} ({1:.2f}%)'.format(order[0], pca.explained_variance_ratio_[order[0]-1]*100), fontsize=12)
+
+#     if show_ax2:
+#         ax2 = fig.add_axes(np.array([6/10.5, 0.75/5.5, 4/10.5, 4/5.5]))
+#         if cohort_s is None:
+#             ax2.scatter(P_df[order[2]-1], P_df[order[0]-1], c=c, cmap=cmap, vmin=vmin, vmax=vmax, lw=lw, alpha=alpha, s=s)
+#         else:
+#             for k in np.unique(cohort_s):
+#                 i = cohort_s[cohort_s==k].index
+#                 ax2.scatter(P_df.loc[i,order[2]-1], P_df.loc[i,order[0]-1], alpha=alpha, label=k, **cohort_args[k])
+#             # ax2.legend(loc=3, fontsize=10, scatterpoints=1, handletextpad=0.1, framealpha=0.5, bbox_to_anchor=(-0.5,-0.1))
+
+#         format_plot(ax2, fontsize=10)
+#         ax2.set_xlabel('PC {0} ({1:.2f}%)'.format(order[2], pca.explained_variance_ratio_[order[2]-1]*100), fontsize=12)
+#         ax2.set_ylabel('PC {0} ({1:.2f}%)'.format(order[0], pca.explained_variance_ratio_[order[0]-1]*100), fontsize=12)
+
+#     if outliers is not None:
+#         ax1.scatter(P_df.loc[outliers, order[1]-1], P_df.loc[outliers, order[0]-1], c='none', edgecolors='r', marker='s', lw=1, alpha=1, s=50, label=None)
+#         if show_ax2:
+#             ax2.scatter(P_df.loc[outliers, order[2]-1], P_df.loc[outliers, order[0]-1], c='none', edgecolors='r', marker='s', lw=1, alpha=1, s=50, label=None)
+
+#     fig.suptitle(title, fontsize=12)
+
+#     if cohort_s is not None and show_legend:
+#         # ax2.legend(loc=0, fontsize=10, scatterpoints=1, handletextpad=0.1, framealpha=0.5, bbox_to_anchor=(-0.5,-0.1))
+#         leg = ax1.legend(loc=0, fontsize=9, scatterpoints=1, handletextpad=0.1, framealpha=1, labelspacing=0.35)
+#         for lh in leg.legendHandles:
+#             lh.set_alpha(1)
+
+#     # if cohort_s is None and c is not None and not isinstance(c, list) and not isinstance(c, str):
+#     if cohort_s is None and c is not None and len(c)==P_df.shape[0]:
+#         if show_ax2:
+#             cax = fig.add_axes(np.array([3.5/10.5, 5/5.5, 1.5/10.5, 0.15/5.5]))
+#         else:
+#             cax = fig.add_axes(np.array([3.5/5.5, 5/5.5, 1.5/5.5, 0.15/5.5]))
+#         # cax = fig.add_axes(np.array([3.5/10.5, 4.85/5.5, 1.5/10.5, 0.15/5.5]))
+#         hc = plt.colorbar(sa, cax=cax, orientation='horizontal')
+#         if cticks is not None:
+#             hc.set_ticks(cticks)
+#         if cticklabels is not None:
+#             # hc.set_ticks([0,0.5,1])
+#             hc.ax.tick_params(labelsize=9)
+#             # cax.invert_xaxis()
+#             cax.set_xticklabels(cticklabels, fontsize=10)
+
+#         hc.locator = ticker.MaxNLocator(integer=True, min_n_ticks=2, nbins=5)
+#         hc.update_ticks()
+
+#         cax.set_ylabel(clabel, rotation=0, ha='right', va='center', fontsize=12)
+#     return fig
+
+# def plot_pca(P_df, pca, c=None, cohort_s=None, cohort_colors=None, cohort_args=None, order=[1,2,3], outliers=None, title='',
+#     vmin=None, vmax=None, alpha=1, lw=0, s=30, cmap=plt.cm.Spectral_r, cticks=None, cticklabels=None, clabel='',
+#     show_legend=True, show_ax2=True):
+#     """
+#     cohort_s: Series encoding cohorts
+#     cohort_colors: dict
+#     Modes:
+#     """
+#     if cohort_s is not None:
+#         cohorts = cohort_s.unique()
+#         nc = len(cohorts)
+#         if cohort_colors is None and cohort_args is None:
+#             # cohort_colors = {i:j for i,j in zip(cohorts, cm.get_cmap(cmap, nc)(np.arange(nc)))}
+#             cohort_colors = {i:j for i,j in zip(cohorts, sns.husl_palette(nc, s=1, l=0.6))}
+#         if cohort_args is None:
+#             cohort_args = {}
+#             for k in np.unique(cohort_s):
+#                 cohort_args[k] = {'color': cohort_colors[k], 'marker':'o', 'edgecolor':'none', 's':s}
+
+#     if show_ax2:
+#         fig = plt.figure(facecolor=(1,1,1), figsize=(10.5,5.5))
+#         ax1 = fig.add_axes(np.array([1/10.5, 0.75/5.5, 4/10.5, 4/5.5]))
+#     else:
+#         fig = plt.figure(facecolor=(1,1,1), figsize=(5.5,5.5))
+#         ax1 = fig.add_axes(np.array([1/5.5, 0.75/5.5, 4/5.5, 4/5.5]))
+#     if cohort_s is None:  # c[P_df.index]
+#         sa = ax1.scatter(P_df[order[1]-1], P_df[order[0]-1], c=c, cmap=cmap, vmin=vmin, vmax=vmax, lw=lw, alpha=alpha, s=s)
+#     else:
+#         for k in np.unique(cohort_s):
+#         # for k in cohort_s.unique():
+#             i = cohort_s[cohort_s==k].index
+#             ax1.scatter(P_df.loc[i,order[1]-1], P_df.loc[i,order[0]-1], alpha=alpha, label=k, **cohort_args[k])
+#     format_plot(ax1, fontsize=10)
+#     ax1.set_xlabel('PC {0} ({1:.2f}%)'.format(order[1], pca.explained_variance_ratio_[order[1]-1]*100), fontsize=12)
+#     ax1.set_ylabel('PC {0} ({1:.2f}%)'.format(order[0], pca.explained_variance_ratio_[order[0]-1]*100), fontsize=12)
+
+#     if show_ax2:
+#         ax2 = fig.add_axes(np.array([6/10.5, 0.75/5.5, 4/10.5, 4/5.5]))
+#         if cohort_s is None:
+#             ax2.scatter(P_df[order[2]-1], P_df[order[0]-1], c=c, cmap=cmap, vmin=vmin, vmax=vmax, lw=lw, alpha=alpha, s=s)
+#         else:
+#             for k in np.unique(cohort_s):
+#                 i = cohort_s[cohort_s==k].index
+#                 ax2.scatter(P_df.loc[i,order[2]-1], P_df.loc[i,order[0]-1], alpha=alpha, label=k, **cohort_args[k])
+#             # ax2.legend(loc=3, fontsize=10, scatterpoints=1, handletextpad=0.1, framealpha=0.5, bbox_to_anchor=(-0.5,-0.1))
+
+#         format_plot(ax2, fontsize=10)
+#         ax2.set_xlabel('PC {0} ({1:.2f}%)'.format(order[2], pca.explained_variance_ratio_[order[2]-1]*100), fontsize=12)
+#         ax2.set_ylabel('PC {0} ({1:.2f}%)'.format(order[0], pca.explained_variance_ratio_[order[0]-1]*100), fontsize=12)
+
+#     if outliers is not None:
+#         ax1.scatter(P_df.loc[outliers, order[1]-1], P_df.loc[outliers, order[0]-1], c='none', edgecolors='r', marker='s', lw=1, alpha=1, s=50, label=None)
+#         if show_ax2:
+#             ax2.scatter(P_df.loc[outliers, order[2]-1], P_df.loc[outliers, order[0]-1], c='none', edgecolors='r', marker='s', lw=1, alpha=1, s=50, label=None)
+
+#     fig.suptitle(title, fontsize=12)
+
+#     if cohort_s is not None and show_legend:
+#         # ax2.legend(loc=0, fontsize=10, scatterpoints=1, handletextpad=0.1, framealpha=0.5, bbox_to_anchor=(-0.5,-0.1))
+#         leg = ax1.legend(loc=0, fontsize=9, scatterpoints=1, handletextpad=0.1, framealpha=1, labelspacing=0.35)
+#         for lh in leg.legendHandles:
+#             lh.set_alpha(1)
+
+#     # if cohort_s is None and c is not None and not isinstance(c, list) and not isinstance(c, str):
+#     if cohort_s is None and c is not None and len(c)==P_df.shape[0]:
+#         if show_ax2:
+#             cax = fig.add_axes(np.array([3.5/10.5, 5/5.5, 1.5/10.5, 0.15/5.5]))
+#         else:
+#             cax = fig.add_axes(np.array([3.5/5.5, 5/5.5, 1.5/5.5, 0.15/5.5]))
+#         # cax = fig.add_axes(np.array([3.5/10.5, 4.85/5.5, 1.5/10.5, 0.15/5.5]))
+#         hc = plt.colorbar(sa, cax=cax, orientation='horizontal')
+#         if cticks is not None:
+#             hc.set_ticks(cticks)
+#         if cticklabels is not None:
+#             # hc.set_ticks([0,0.5,1])
+#             hc.ax.tick_params(labelsize=9)
+#             # cax.invert_xaxis()
+#             cax.set_xticklabels(cticklabels, fontsize=10)
+
+#         hc.locator = ticker.MaxNLocator(integer=True, min_n_ticks=2, nbins=5)
+#         hc.update_ticks()
+
+#         cax.set_ylabel(clabel, rotation=0, ha='right', va='center', fontsize=12)
+#     return fig
+
+# def format_plot(ax, tick_direction='out', tick_length=4, hide=['top', 'right'], hide_spines=True, lw=1, fontsize=9):
+
+#     for i in ['left', 'bottom', 'right', 'top']:
+#         ax.spines[i].set_linewidth(lw)
+
+#     # ax.axis["left"].major_ticklabels.set_ha("left")
+#     ax.tick_params(axis='both', which='both', direction=tick_direction, labelsize=fontsize)
+
+#     # set tick positions
+#     if 'top' in hide and 'bottom' in hide:
+#         ax.get_xaxis().set_ticks_position('none')
+#     elif 'top' in hide:
+#         ax.get_xaxis().set_ticks_position('bottom')
+#     elif 'bottom' in hide:
+#         ax.get_xaxis().set_ticks_position('top')
+#     else:
+#         ax.get_xaxis().set_ticks_position('both')
+
+#     if 'left' in hide and 'right' in hide:
+#         ax.get_yaxis().set_ticks_position('none')
+#     elif 'left' in hide:
+#         ax.get_yaxis().set_ticks_position('right')
+#     elif 'right' in hide:
+#         ax.get_yaxis().set_ticks_position('left')
+#     else:
+#         ax.get_yaxis().set_ticks_position('both')
+
+#     if hide_spines:
+#         for i in hide:
+#             ax.spines[i].set_visible(False)
+
+
+#     # adjust tick size
+#     for line in ax.xaxis.get_ticklines() + ax.yaxis.get_ticklines():
+#     #for line in ax.get_xticklines() + ax.get_yticklines():
+#         line.set_markersize(tick_length) # tick length
+#         line.set_markeredgewidth(lw) # tick line width
+
+#     for line in (ax.xaxis.get_ticklines(minor=True) + ax.yaxis.get_ticklines(minor=True)):
+#         line.set_markersize(tick_length/2) # tick length
+#         line.set_markeredgewidth(lw/2) # tick line width
