@@ -62,8 +62,8 @@ qvars = [
 enc_amyloid_type = {
     1: "AL",
     2: "MM_associated_AL",
-    3: "WM_associated_AL",
-    4: "lymphoma_associated_AL"
+    14: "WM_associated_AL",
+    15: "B-cell_lymphoproliferative_associated_AL"
 }
 
 enc_sex = {1: "male", 2:"female"}
@@ -144,7 +144,7 @@ enc_bu_2019 = {
 # Treatment Encodings
 # -------------------------
 
-"""
+enc_treaments = """
 9	Daratumumab, pomalidomide, dex (DPd)
 10	Venetoclax
 11	Melphalan, IV/SCT
@@ -165,6 +165,7 @@ enc_bu_2019 = {
 30	Bendamustine
 31	CyBorD
 32	VMD
+36  Bortezomib, SCT
 37	Vel/Mel/Dex
 39	CyBorD daratumumab
 38	Mel/Rev/Dex
@@ -183,4 +184,23 @@ enc_bu_2019 = {
 62	Other rituximab-based regimen
 63	dara + IMiD
 64	BTK inhibitor
+"""
+
+enc_treatment_groups = """
+HDM/SCT	11,36
+Melphalan-based regimen	12,13,14,19,23
+Proteasome inhibitor-based	17,27,29,31,32,37
+Dara-CyBorD	39
+Daratumumab-based	9,28,63
+IMiD-based	16,18,25,26,38
+RVD	60
+Venetoclax-based	10
+Cyclophosphamide	59
+Bendamustine	30
+Glucocorticoid monotherapy	15
+R-benda	58
+BDR	61
+Other rituximab-based regimen	62
+BTK inhibitor	64
+Supportive	51,52,53,54,55,56,57,58
 """
