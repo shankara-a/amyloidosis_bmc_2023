@@ -3,7 +3,9 @@
 # -------------------------
 # Dataset Features
 # -------------------------
-demographics = ['Age at diagnosis (y)', 'Sex', 'Ethnicity', 'Race', 'Education']
+# Note changed {Age at diagnosis (y): Age}
+demographics = ['Age', 'Sex', 'Ethnicity', 'Race', 'Education'] 
+
 
 dates = [
     'Date of admission to center', 'Date of birth', 'Date of diagnosis', 
@@ -16,6 +18,8 @@ amyloid_vars = [
     'Bone marrow CR staining', 'Kappa or lambda PCD', 'Kappa-sFLC',
     'Lambda-sFLC', 'kappa:lambda ratio', 'dFLC',
     'Primary organ', 'Secondary organ',
+    'Bone marrow plasma cells (%)',
+    'SIFE M-component', 'UIFE M-component'
 ]
 
 amyloid_ros = [
@@ -37,8 +41,7 @@ labs = [
     'WBC', 'Hemoglobin', 'MCV', 'Platelet count', 'Sed rate',
     'CRP', 'D-dimer', 'Factor X', 'Creatinine', '24-hr UTP', 'Albumin',
     'Alk phos', 'BNP', 'NT-proBNP', 'Troponin', 'Calcium', 'Uric acid',
-    'LDH', 'Iron', 'TIBC', 'Bone marrow plasma cells (%)',
-    'SIFE M-component', 'UIFE M-component'
+    'LDH', 'Iron', 'TIBC',
 ]
 
 staging = [
@@ -50,11 +53,20 @@ other = ['IVSd', 'LVEF', 'Floors climbed', 'Distance walked', ]
 
 vitals = ['Systolic BP sitting', 'Diastolic BP sitting','Pulse sitting']
 
-# Quantitative Variables
+# Quantitative Independent Variables
+# Includes amyloid lab values, BM plasma cell, cardiac biomarkers, lab values, floors climbed, distance walked
 qvars = [
-    'Kappa or lambda PCD', 'Kappa-sFLC',
-    'Lambda-sFLC', 'kappa:lambda ratio', 'dFLC', 'IVSd', 'LVEF', 'Floors climbed','Distance walked'
-] + labs + vitals
+    'Kappa-sFLC', 'Lambda-sFLC', 'kappa:lambda ratio', 'dFLC', 'Bone marrow plasma cells (%)',
+    'IVSd', 'LVEF', 'Floors climbed','Distance walked',
+    'WBC', 'Hemoglobin', 'MCV', 'Platelet count', 'Sed rate',
+    'CRP', 'D-dimer', 'Factor X', 'Creatinine', '24-hr UTP', 'Albumin',
+    'Alk phos', 'BNP', 'NT-proBNP', 'Troponin', 'Calcium', 'Uric acid',
+    'LDH', 'Iron', 'TIBC'
+] + vitals
+
+# Categorical Independent Variables
+# Includes demographics, amyloid testing, amyloid ROS, and amyloid related symptoms
+catvars = demographics + list(set(amyloid_vars) - set(qvars)) + amyloid_ros + amyloid_symptoms
 
 # -------------------------
 # Dataset Encodings
