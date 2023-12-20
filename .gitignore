@@ -165,3 +165,6 @@ data/raw/Dataset.csv
 data/raw/~$AL dataset for machine learning analysis.xlsx
 
 data/processed
+data/clustering
+data/imputed
+figures/

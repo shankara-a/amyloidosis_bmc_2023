@@ -26,7 +26,7 @@ def get_pcs(X: np.array, normalize: bool = True, n_components: int = 5, **pca_kw
         (tuple): transformed values, PCA object, feature names
     """
     if normalize:
-        X = scipy.stats.zscore(axis=0)
+        X = scipy.stats.zscore(X, axis=0)
     
     pca = sklearn.decomposition.PCA(n_components=n_components, **pca_kwargs)
     pca.fit(X.T)
