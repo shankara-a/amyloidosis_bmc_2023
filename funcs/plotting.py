@@ -53,11 +53,26 @@ def plot_clustermap(X, figsize=(8,8), xlabel=None, ylabel=None, vmin=-1, vmax=1)
         _ = clustermap.ax_heatmap.set_ylabel(ylabel, fontsize=8)
 
 #----------------------------
+# Survival
+#----------------------------
+def plot_cumulative_dynamic_auc(x_times, rsf_auc, rsf_mean_auc, ax=None):
+    """Plot cumulative dynamic AUC"""
+    if ax is None:
+        fig,ax = plt.subplots(figsize=(4,3))
+
+    ax.plot(x_times, rsf_auc, marker="o")
+    ax.axhline(rsf_mean_auc, linestyle="--", c="k", alpha=0.7)
+    ax.set_xlabel("Time from Diagnosis (M)")
+    ax.set_ylabel("Time-dependent AUC\n($\mu$ = {:.2})".format(rsf_mean_auc))
+
+    ax.grid(True)
+
+#----------------------------
 # Dimensionality Reduction
 #----------------------------
 def plot_pca(P_df, pca, c=None, cohort_s=None, cohort_colors=None, cohort_args=None, order=[1,2,3], outliers=None, title='',
     vmin=None, vmax=None, alpha=1, lw=0, s=30, cmap=plt.cm.Spectral_r, cticks=None, cticklabels=None, clabel='',
-    show_legend=True, show_ax2=True, axis_length=5.5):
+    show_legend=True, show_ax2=True, axis_length=5.5, xlim=None, ylim=None):
     """
     cohort_s: Series encoding cohorts
     cohort_colors: dict
@@ -140,7 +155,105 @@ def plot_pca(P_df, pca, c=None, cohort_s=None, cohort_colors=None, cohort_args=N
 
         cax.set_ylabel(clabel, rotation=0, ha='right', va='center', fontsize=12)
 
+
+    if xlim is not None:
+        ax1.set_xlim(xlim)
+    if ylim is not None:
+        ax1.set_ylim(ylim)
+
     return fig
+
+def plot_pca_ax(
+    P_df,
+    pca,
+    ax=None,
+    c=None,
+    cohort_s=None,
+    cohort_colors=None,
+    cohort_args=None,
+    order=[1,2,3],
+    outliers=None,
+    title='',
+    vmin=None,
+    vmax=None,
+    alpha=1,
+    lw=0,
+    s=30,
+    cmap=plt.cm.Spectral_r,
+    cticks=None,
+    cticklabels=None,
+    clabel='',
+    show_legend=True,
+    xlim=True,
+    ylim=True
+    ):
+    """
+    PCA Plot by axis.
+    -------------------
+    cohort_s: Series encoding cohorts
+    cohort_colors: dict
+    Modes:
+    """
+    if cohort_s is not None:
+        cohorts = cohort_s.unique()
+        nc = len(cohorts)
+        if cohort_colors is None and cohort_args is None:
+            cohort_colors = {i:j for i,j in zip(cohorts, sns.husl_palette(nc, s=1, l=0.6))}
+        if cohort_args is None:
+            cohort_args = {}
+            for k in np.unique(cohort_s):
+                cohort_args[k] = {'color': cohort_colors[k], 'marker':'o', 'edgecolor':'none', 's':s}
+
+    if ax is None:
+        fig,ax = plt.subplots(figsize=(6,6))
+
+    if cohort_s is None:
+        sa = ax.scatter(P_df[order[1]-1], P_df[order[0]-1], c=c, cmap=cmap, vmin=vmin, vmax=vmax, lw=lw, alpha=alpha, s=s, rasterized=False)
+    else:
+        for k in np.unique(cohort_s):
+            i = cohort_s[cohort_s==k].index
+            ax.scatter(P_df.loc[i,order[1]-1], P_df.loc[i,order[0]-1], alpha=alpha, label=k, rasterized=True, **cohort_args[k])
+
+    format_plot(ax, fontsize=10)
+    ax.set_xlabel('PC {0} ({1:.2f}%)'.format(order[1], pca.explained_variance_ratio_[order[1]-1]*100), fontsize=12)
+    ax.set_ylabel('PC {0} ({1:.2f}%)'.format(order[0], pca.explained_variance_ratio_[order[0]-1]*100), fontsize=12)
+
+    if outliers is not None:
+        ax.scatter(P_df.loc[outliers, order[1]-1], P_df.loc[outliers, order[0]-1], c='none', edgecolors='r', marker='s', lw=1, alpha=1, s=50, label=None, rasterized=True)
+
+    ax.set_title(title, fontsize=12)
+
+    if cohort_s is not None and show_legend:
+        leg = ax.legend(loc=0, fontsize=9, scatterpoints=1, handletextpad=0.1, framealpha=1, labelspacing=0.35)
+        for lh in leg.legendHandles:
+            lh.set_alpha(1)
+
+    if cohort_s is None and c is not None and len(c)==P_df.shape[0]:
+        x1 = ax.get_position().x1
+        y1 = ax.get_position().y1
+
+        fig = plt.gcf()
+        #cax = fig.add_axes(np.array([x1, y1*5/5.5, 0.15/5.5, 1/5.5]))
+        cax = fig.add_axes(np.array([4.5/5.5, 5/5.5, .5/5.5, 0.15/5.5]))
+        hc = plt.colorbar(sa, cax=cax, orientation='horizontal')
+
+        if cticks is not None:
+            hc.set_ticks(cticks)
+        if cticklabels is not None:
+            hc.ax.tick_params(labelsize=9)
+            cax.set_xticklabels(cticklabels, fontsize=10)
+
+        hc.locator = ticker.MaxNLocator(integer=True, min_n_ticks=2, nbins=5)
+        hc.update_ticks()
+
+        cax.set_ylabel(clabel, rotation=0, ha='right', va='center', fontsize=12)
+
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    if ylim is not None:
+        ax.set_ylim(ylim)
+
+    return ax
 
 def format_plot(ax, tick_direction='out', tick_length=4, hide=['top', 'right'], hide_spines=True, lw=1, fontsize=9):
 
