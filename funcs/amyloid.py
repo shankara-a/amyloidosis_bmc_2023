@@ -6,7 +6,6 @@
 # Note changed {Age at diagnosis (y): Age}
 demographics = ['Age', 'Sex', 'Ethnicity', 'Race', 'Education'] 
 
-
 dates = [
     'Date of admission to center', 'Date of birth', 'Date of diagnosis', 
     'Date of death', 'Date of last visit', 'Cardiopulmonary symptom onset', 

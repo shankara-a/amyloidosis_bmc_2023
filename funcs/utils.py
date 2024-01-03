@@ -5,6 +5,12 @@ import scipy
 import sklearn
 from tqdm import tqdm
 
+# -- import packages: --------------------------------------------------------------------
+import funcs.amyloid as amyloid
+
+#----------------------------
+# Dataset specific
+#----------------------------
 def map_encoding(x, d):
     """Map encoding."""
     try:
@@ -26,9 +32,58 @@ def get_eras(date):
         return "Era_3"
     else:
         return "Era_4"
+    
+def data_formatter(
+        X: pd.DataFrame, 
+        collapse_cats: bool = True, 
+        collapse_race: bool = True,
+        verbose: bool = True
+        ) -> pd.DataFrame:
+    """Data formatter
+
+    Sets up amyloid data for ML methods.
+
+    Args:
+        X (pd.DataFrame): _description_
+        collapse_cats (bool, optional): _description_. Defaults to True.
+        collapse_race (bool, optional): _description_. Defaults to True.
+        verbose (bool, optional): _description_. Defaults to True.
+
+    Returns:
+        pd.DataFrame: _description_
+    """
+    from sksurv.preprocessing import OneHotEncoder
+
+    X = X.copy()
+    
+    # Collapse Race
+    if collapse_race:
+        X["Race"] = X["Race"].apply(lambda x: "Other" if x in ['American_Indian_Alaska_Native','Multiracial','Native_Hawaiian_Pacific', 'Unknown/other'] else x)
+
+    # Add computed BU Staging
+    X["BU Stage (Computed)"] = X.apply(lambda row: assign_bu_stage(row),1)
+
+    # Split to categorical variables
+    categorical_cols = X.loc[:,X.dtypes == "object"].columns
+    numeric_cols = X.loc[:,X.dtypes != "object"].columns
+
+    # Collapse symptom and system involvement variables to whether or not patient experienced them
+    if collapse_cats:
+        for cat in np.intersect1d(categorical_cols, np.array(amyloid.amyloid_ros + amyloid.amyloid_symptoms)):
+            X[cat] = X[cat].apply(lambda x: True if x in ['involved','yes'] else False)
+
+    # One-hot encode all categorical variables
+    X = OneHotEncoder().fit_transform(X.loc[:,categorical_cols].astype("category")).join(X.loc[:,numeric_cols])
+
+    if verbose:
+        print("Using {} quantitative variables.".format(numeric_cols.shape[0]))
+        print("Using {} categorical variables.".format(categorical_cols.shape[0]))
+        print("Total samples x feaures (one-hot encoded): ({} x {})".format(X.shape[0], X.shape[1]))
+
+    return X
 
 #----------------------------
-# Functions
+# Medical
 #----------------------------
 def compute_egfr(sCr: float, age: float, is_female: bool) -> float:
     """
@@ -276,3 +331,31 @@ def fisher_exact(
         columns={'index':'feat', 'value':'odds_r'}).set_index(['feat',meta_s.name])
 
     return pval.join(pval_adj).join(odds_r).reset_index()
+
+#----------------------------
+# Machine Learning
+#----------------------------
+def compute_permutation_importance(model, X_test, y_test, n_repeats = 15, random_state = 123):
+    """_summary_
+
+    Args:
+        model (_type_): _description_
+        X_test (_type_): _description_
+        y_test (_type_): _description_
+        n_repeats (_type_, optional): _description_. Defaults to None.
+        random_state (int, optional): _description_. Defaults to 123.
+    """
+    from sklearn.inspection import permutation_importance
+
+    result = permutation_importance(model, X_test, y_test, n_repeats=n_repeats, random_state=random_state)
+
+    return pd.DataFrame(
+        {
+            k: result[k]
+            for k in (
+                "importances_mean",
+                "importances_std",
+            )
+        },
+        index=X_test.columns,
+    ).sort_values(by="importances_mean", ascending=False)

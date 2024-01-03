@@ -55,13 +55,13 @@ def plot_clustermap(X, figsize=(8,8), xlabel=None, ylabel=None, vmin=-1, vmax=1)
 #----------------------------
 # Survival
 #----------------------------
-def plot_cumulative_dynamic_auc(x_times, rsf_auc, rsf_mean_auc, ax=None):
+def plot_cumulative_dynamic_auc(x_times, rsf_auc, rsf_mean_auc, line_color="k", ax=None):
     """Plot cumulative dynamic AUC"""
     if ax is None:
         fig,ax = plt.subplots(figsize=(4,3))
 
     ax.plot(x_times, rsf_auc, marker="o")
-    ax.axhline(rsf_mean_auc, linestyle="--", c="k", alpha=0.7)
+    ax.axhline(rsf_mean_auc, linestyle="--", c=line_color, alpha=0.7)
     ax.set_xlabel("Time from Diagnosis (M)")
     ax.set_ylabel("Time-dependent AUC\n($\mu$ = {:.2})".format(rsf_mean_auc))
 
