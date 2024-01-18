@@ -175,6 +175,27 @@ def get_pcs(X_df: pd.DataFrame, normalize: bool = True, n_components: int = 5, *
 
     return P_df, pca, X_df.columns.values
 
+def get_umap(X_df: pd.DataFrame, normalize: bool = True, **umap_kwargs):
+    """Get UMAP projection
+
+    Args:
+        X_df (pd.DataFrame): _description_
+        normalize (bool, optional): _description_. Defaults to True.
+
+    Returns:
+        _type_: _description_
+    """
+    import umap
+    from sklearn.preprocessing import StandardScaler
+
+    if normalize:
+        X = StandardScaler().fit_transform(X_df.values)
+    else:
+        X = X_df.values
+
+    embedding = umap.UMAP(**umap_kwargs).fit_transform(X)
+    return pd.DataFrame(embedding, columns=["umap1","umap2"], index=X_df.index)
+
 #----------------------------
 # Stats
 #----------------------------
@@ -359,3 +380,61 @@ def compute_permutation_importance(model, X_test, y_test, n_repeats = 15, random
         },
         index=X_test.columns,
     ).sort_values(by="importances_mean", ascending=False)
+
+def get_agg_clust(X: pd.DataFrame, n_clust: int, metric: str = "euclidean", linkage: str = "average"):
+    """_summary_
+
+    Args:
+        X (pd.DataFrame): _description_
+        n_clust (int): _description_
+        affinity (str, optional): _description_. Defaults to "euclidean".
+        linkage (str, optional): _description_. Defaults to "average".
+    """
+    from sklearn.cluster import AgglomerativeClustering
+
+    # Agglomerative Clustering
+    cluster = AgglomerativeClustering(n_clusters=n_clust, metric=metric, linkage=linkage)
+
+    # Derive clusters
+    clusters = cluster.fit_predict(X.values)
+
+    return pd.DataFrame(clusters+1, index=X.index, columns=['agg_clust_{}'.format(n_clust)])
+
+def load_ccp_result(output_rds: str, input_path: str) -> dict:
+    """Load consensus cluster result into python
+
+    Requires rpy2
+
+    Args:
+        output_rds (str): output of .rds file from consensus clsuter plus
+        input_path (str): input clustering matrix to extract sample ids
+
+    Returns:
+        dict: dicitonary of results
+    """
+    import rpy2.robjects as robjects
+    from rpy2.robjects import pandas2ri
+    pandas2ri.activate()
+    
+    # Load RObject
+    readRDS = robjects.r['readRDS']
+    X = readRDS(output_rds)
+    result = {}
+
+    # Load sample ids
+    sample_id = pd.read_csv(input_path, sep="\t", index_col=0).index
+    
+    for i in range(1,len(X)):
+        results_i = {}
+        
+        # Consensus matrix
+        cm_df = pd.DataFrame(X[i][0], index=sample_id, columns=sample_id)
+        results_i['cm'] = cm_df
+        
+        # Annot (ie cluster)
+        annot_s = pd.Series(X[i][2])
+        annot_s.index = sample_id
+        results_i['annot'] = annot_s
+        result[i] = results_i
+    
+    return result
