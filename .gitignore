@@ -168,3 +168,5 @@ data/processed
 data/clustering
 data/imputed
 figures/
+data/raw/HemeCR.csv
+data/raw/Renal and heme response data.xlsx
