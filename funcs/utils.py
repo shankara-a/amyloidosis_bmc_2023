@@ -147,6 +147,49 @@ def assign_bu_stage(row):
     
     return {0:"stage I",1:"stage II",2:"stage III",3:"stage IIIb"}[score]
     
+def get_palladini_renal_stage(row):
+    """
+    Assign Renal Staging.
+
+    Based on Palladini et al, Bloo 2014
+    10.1182/blood-2014-04-570010
+
+    # Renal stage I: both proteinuria <= 5 g/24 h and eGFR >= 50 mL/min per 1.73 m2. 
+    # Renal stage II: either proteinuria > 5 g/24 h or eGFR < 50 mL/min per 1.73 m2. 
+    # Renal stage III: both proteinuria > 5 g/24 h and eGFR < 50 mL/min per 1.73 m2.
+
+    """
+    if row["24-hr UTP"] <= 5000 and row["eGFR"] >= 50:
+        return "Stage I"
+    elif row["24-hr UTP"] > 5000 and row["eGFR"] < 50:
+        return "Stage III"
+    elif row["24-hr UTP"] > 5000 or row["eGFR"] < 50:
+        return "Stage II"
+    else:
+        return None
+
+def get_median_os(data_df, duration="OS (yr)", event="status", groupby=None):
+    """_summary_
+
+    Args:
+        data_df (_type_): _description_
+    """
+    from lifelines.utils import median_survival_times
+    from lifelines import KaplanMeierFitter
+
+    if groupby is None:
+        kmf = KaplanMeierFitter()
+        kmf.fit(durations = data_df[duration], event_observed = data_df[event])
+        return kmf.median_survival_time_
+    else:
+        result = {}
+        for group in np.unique(data_df[groupby]):
+            _data_df = data_df[data_df[groupby]==group]
+            kmf = KaplanMeierFitter()
+            kmf.fit(durations = _data_df[duration], event_observed = _data_df[event])
+            result[group] = kmf.median_survival_time_
+        return result
+    
 #----------------------------
 # Dimensionality Reduction
 #----------------------------

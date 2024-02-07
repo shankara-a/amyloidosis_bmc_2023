@@ -403,3 +403,46 @@ Other rituximab-based regimen	62
 BTK inhibitor	64
 Supportive	51,52,53,54,55,56,57,58
 """
+
+# enc_treatment_metagroups = {
+#     "HDM/SCT":"HDM/SCT",
+#     "Melphalan-based regimen":"Melphalan-based regimen",
+#     "Proteasome inhibitor-based":"Proteasome inhibitor-based",
+#     "Dara-CyBorD":"Daratumumab-based",
+#     "Daratumumab-based":"Daratumumab-based",
+#     "IMiD-based":"IMiD-based",
+
+
+# }
+
+# -------------------------
+# Final Tables
+# -------------------------
+tableone_names = {
+    'Kappa-sFLC':'K (mg/L)',
+    'Lambda-sFLC':'L (mg/L)', 
+    'kappa:lambda ratio':'K:L',
+    'dFLC':'dFLC mg/L',
+    'Bone marrow plasma cells (%)':'BMPC (%)', 
+    'IVSd':'IVSd (mm)', 
+    'LVEF':'LVEF (%)', 
+    'WBC':'WBC /mm^3', 
+    'Hemoglobin':'Hgb (g/dL)',
+    'MCV':'MCV (um^3)', 
+    'Platelet count':'PLT /mm^2', 
+    'Sed rate': 'ESR (mm/hr)', 
+    'D-dimer':'D-dimer (mg/L)', 
+    'Factor X':'Factor X (%)', 
+    'eGFR':'eGFR (mL/min/1.72m^2)',
+    '24-hr UTP':'Proteinuria (mg/24h)', 
+    'Albumin':'Albumin (g/dL)', 
+    'Alk phos':'ALP (U/L)', 
+    'BNP':'BNP (pg/mL)', 
+    'Troponin':'Troponin (ng/mL)', 
+    'Calcium': 'Calcium (mg/dL)',
+    'Uric acid': 'Uric Acid (mg/dL)', 
+    'LDH':'LDH (U/L)', 
+    'Iron':'Fe (mcg/dL)', 
+    'TIBC':'TIBC (mcg/dL)',
+    "Kappa or lambda PCD":"Amyloidogenic LC"
+}

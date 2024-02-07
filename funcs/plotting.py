@@ -27,7 +27,7 @@ def missing_barplot(df: pd.DataFrame, ax: Union[plt.axes, None] = None, **barplo
     ax.legend().remove()
     ax.set_xlabel("% Missing", fontsize=12)
 
-def plot_clustermap(X, figsize=(8,8), xlabel=None, ylabel=None, vmin=-1, vmax=1):
+def plot_clustermap(X, figsize=(8,8), xlabel=None, ylabel=None, vmin=-1, vmax=1, **kwargs):
     """Plot clustermp."""
     import seaborn as sns
 
@@ -41,6 +41,7 @@ def plot_clustermap(X, figsize=(8,8), xlabel=None, ylabel=None, vmin=-1, vmax=1)
         linecolor='k',
         linewidths=0.5,
         figsize=figsize,
+        **kwargs
     )
 
     _ = clustermap.ax_heatmap.set_xticklabels(clustermap.ax_heatmap.get_xticklabels(), fontsize=6)
@@ -185,7 +186,8 @@ def plot_pca_ax(
     clabel='',
     show_legend=True,
     xlim=True,
-    ylim=True
+    ylim=True,
+    add_mean_marker=False
     ):
     """
     PCA Plot by axis.
@@ -208,11 +210,16 @@ def plot_pca_ax(
         fig,ax = plt.subplots(figsize=(6,6))
 
     if cohort_s is None:
-        sa = ax.scatter(P_df[order[1]-1], P_df[order[0]-1], c=c, cmap=cmap, vmin=vmin, vmax=vmax, lw=lw, alpha=alpha, s=s, rasterized=False)
+        sa = ax.scatter(P_df[order[1]-1], P_df[order[0]-1], c=c, cmap=cmap, vmin=vmin, vmax=vmax, lw=lw, alpha=alpha, s=s, rasterized=True)
     else:
         for k in np.unique(cohort_s):
             i = cohort_s[cohort_s==k].index
             ax.scatter(P_df.loc[i,order[1]-1], P_df.loc[i,order[0]-1], alpha=alpha, label=k, rasterized=True, **cohort_args[k])
+
+        if add_mean_marker:
+            for k in np.unique(cohort_s):
+                a,b = P_df.join(cohort_s).groupby(cohort_s.name).mean().loc[k,[order[1]-1,order[0]-1]]
+                ax.plot(a, b,'o', c=cohort_args[k]["color"], markersize=10, markeredgecolor='k')
 
     format_plot(ax, fontsize=10)
     ax.set_xlabel('PC {0} ({1:.2f}%)'.format(order[1], pca.explained_variance_ratio_[order[1]-1]*100), fontsize=12)
