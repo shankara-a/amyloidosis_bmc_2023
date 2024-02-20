@@ -160,17 +160,9 @@ cython_debug/
 #.idea/
 data/raw/AL dataset for machine learning analysis.xlsx
 .gitignore
-data/raw/Treatments.csv
-data/raw/Dataset.csv
-data/raw/~$AL dataset for machine learning analysis.xlsx
-
+data/raw/*
+tables/*
 data/processed
 data/clustering
 data/imputed
 figures/
-data/raw/HemeCR.csv
-data/raw/Renal and heme response data.xlsx
-data/raw/AddnlPD.csv
-data/raw/Hemodialysis.csv
-data/raw/PeritonealDialysis.csv
-data/raw/KidneyTransplant.csv
