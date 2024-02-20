@@ -4,6 +4,7 @@ import numpy as np
 import scipy
 import sklearn
 from tqdm import tqdm
+from typing import Union
 
 # -- import packages: --------------------------------------------------------------------
 import funcs.amyloid as amyloid
@@ -81,6 +82,63 @@ def data_formatter(
         print("Total samples x feaures (one-hot encoded): ({} x {})".format(X.shape[0], X.shape[1]))
 
     return X
+
+def create_imputed_tableone(imp:dict, outfile: str, dataset: str = "full_dataset"):
+    """Create imputed tableone.
+
+    Args:
+        imp (dict): dictionary of imputed results
+        dataset (str, optional): dataset to create for. Defaults to "full_dataset".
+    """
+    from pandas.api.types import CategoricalDtype
+    from tableone import TableOne
+    
+    best_mice_run = imp[dataset]['mse'][[x for x in imp[dataset]['mse'] if x.startswith("mice")]].sum(0).idxmin()
+
+    # Labels for each imputed dataset
+    imp[dataset]["X"]["data"] = "Original"
+    imp[dataset]["Xi_median"]["data"] = "Median"
+    imp[dataset]["Xi_knn"]["data"] = "KNN (K=5)"
+    imp[dataset]["Xi_mice"][int(best_mice_run.split("_")[-1])]["data"] = "MICE"
+
+    # Add mean square errors
+    imp[dataset]["X"]["MSE"] = 0
+    imp[dataset]["Xi_median"]["MSE"] = imp[dataset]["mse"].sum(0)["median_imputed"]
+    imp[dataset]["Xi_knn"]["MSE"] = imp[dataset]["mse"].sum(0)["knn_imputed"]
+    imp[dataset]["Xi_mice"][int(best_mice_run.split("_")[-1])]["MSE"] = imp[dataset]["mse"].sum(0)[best_mice_run]
+    
+    # Order by missing values
+    s = imp[dataset]["X"].isna().sum() / imp[dataset]["X"].shape[0]
+    columns = list(s.sort_values().index)
+
+    X_full = pd.concat([
+        imp[dataset]["X"], 
+        imp[dataset]["Xi_median"], 
+        imp[dataset]["Xi_knn"],
+        imp[dataset]["Xi_mice"][int(best_mice_run.split("_")[-1])]])
+    
+    X_full["data"] = X_full["data"].astype(CategoricalDtype(categories=["Original", "MICE", "KNN (K=5)", "Median"], ordered=True))
+
+    # Create table one
+    nonnormal = []
+    categorical = []
+    groupby = ["data"]
+
+    mytable = TableOne(
+        X_full.reset_index(), 
+        columns, 
+        categorical, 
+        groupby,
+        nonnormal,
+        pval=True, 
+        overall=False, 
+        decimals = {'MSE':4,'WBC':2, 'Hemoglobin':2, 'Troponin': 3, 'Calcium':2, 
+                    'Bone marrow plasma cells (%)':2, 'Uric acid':2, 
+                    'Albumin':2, 'kappa:lambda ratio':2},
+        rename=amyloid.tableone_names
+    )
+
+    mytable.to_excel(outfile)
 
 #----------------------------
 # Medical
@@ -190,6 +248,35 @@ def get_median_os(data_df, duration="OS (yr)", event="status", groupby=None):
             result[group] = kmf.median_survival_time_
         return result
     
+def get_time_eskd(row, start_time: str = "Date of diagnosis"):
+    """Return time to ESKD in years.
+
+    Censor by last encounter (either death or last visit).
+
+    Args:
+        row (pd.Series): pd.DataFrame row with
+            Date of RRT Start
+            treatment_eskd (whether or not patient was placed on RRT)
+            Date of death
+            Date of last visit
+        start_time (str): column to use for start time
+    """
+    import pandas as pd
+
+    if not pd.isnull(row["Date of RRT Start"]):
+        end_time = row["Date of RRT Start"]
+    else:
+        if row["treatment_eskd"] == 1:
+            return pd.NaT
+        
+        if not pd.isnull(row['Date of death']):
+            end_time = row["Date of death"]
+        else:
+            end_time = row["Date of last visit"]
+
+    time = end_time - row[start_time] 
+    return time / pd.Timedelta(days=365.25)
+    
 #----------------------------
 # Dimensionality Reduction
 #----------------------------
@@ -242,6 +329,68 @@ def get_umap(X_df: pd.DataFrame, normalize: bool = True, **umap_kwargs):
 #----------------------------
 # Stats
 #----------------------------
+def load_and_aggregate_imputation(original_file: str, mice_imputed_dir: str, knn_neighbors: int = 5):
+    """Load & Aggregate Imputations
+
+    Args:
+        original_file (str): _description_
+        mice_imputed_dir (str): _description_
+        knn_neighbors (int, optional): _description_. Defaults to 5.
+    """
+    from sklearn.impute import KNNImputer
+    import glob
+    import os
+
+    # Includes only continuous variables
+    # Comparison of multiple imputation methods
+    X = pd.read_csv(original_file, sep='\t', index_col=0).rename(columns=amyloid.ddict_unclean)
+
+    # Median imputation
+    Xi_median = X.fillna(X.median())
+
+    # KNN Imputation
+    imputer = KNNImputer(n_neighbors=knn_neighbors)
+    Xi_knn = pd.DataFrame(
+        imputer.fit_transform(X), 
+        index=X.index, 
+        columns=X.columns
+    )
+
+    # MICE imputation
+    Xi_mice_dict = {}
+
+    for mice_result in glob.glob(os.path.join(mice_imputed_dir, "mice_qvars*.tsv")):
+        Xi_mice_dict[int(mice_result.split("/")[-1].split("_")[-1].split(".tsv")[0])] = pd.read_csv(
+            mice_result, sep="\t").rename(columns={'X24_hr_UTP':'24_hr_UTP'}).rename(columns=amyloid.ddict_unclean)
+
+    # Comparison of imputation to mean
+    Xi_comparison = pd.DataFrame(X.mean(), index=X.columns, columns=['original']).join(
+        pd.DataFrame(Xi_median.mean(), index=X.columns, columns=['median_imputed'])).join(
+        pd.DataFrame(Xi_knn.mean(), index=X.columns, columns=['knn_imputed'])).join(
+        pd.concat(
+            [pd.DataFrame(Xi_mice_dict[k].mean(), index=X.columns, columns=['mice_imputed_{}'.format(k)]) for k,v in Xi_mice_dict.items()],
+            axis=1
+        )
+    )
+
+    # Mean Square AERror
+    err = (Xi_comparison.T - Xi_comparison['original']) / Xi_comparison['original']
+    mse = err.T**2
+
+    result = {}
+    result["X"] = X
+    result["Xi_median"] = Xi_median
+    result["Xi_knn"] = Xi_knn
+    result["Xi_mice"] = Xi_mice_dict
+    result["mean_comparison"] = Xi_comparison
+    result["mse"] = mse
+
+    # Save files
+    Xi_median.rename(columns=amyloid.ddict_clean).to_csv(os.path.join(mice_imputed_dir, "median_qvars_01.tsv"), sep="\t")
+    Xi_knn.rename(columns=amyloid.ddict_clean).to_csv(os.path.join(mice_imputed_dir, "knn_qvars_01.tsv"), sep="\t")
+
+    return result
+
 def compute_ranksum(in_group: pd.DataFrame, out_group: pd.DataFrame, feature: str):
     """Compute Rank-Sum p-values.
 
@@ -443,7 +592,7 @@ def get_agg_clust(X: pd.DataFrame, n_clust: int, metric: str = "euclidean", link
 
     return pd.DataFrame(clusters+1, index=X.index, columns=['agg_clust_{}'.format(n_clust)])
 
-def load_ccp_result(output_rds: str, input_path: str) -> dict:
+def load_ccp_result(output_dir: str) -> dict:
     """Load consensus cluster result into python
 
     Requires rpy2
@@ -457,15 +606,17 @@ def load_ccp_result(output_rds: str, input_path: str) -> dict:
     """
     import rpy2.robjects as robjects
     from rpy2.robjects import pandas2ri
+    import os
+
     pandas2ri.activate()
     
     # Load RObject
     readRDS = robjects.r['readRDS']
-    X = readRDS(output_rds)
+    X = readRDS(os.path.join(output_dir, "ccp.rds"))
     result = {}
 
     # Load sample ids
-    sample_id = pd.read_csv(input_path, sep="\t", index_col=0).index
+    sample_id = pd.read_csv(os.path.join(output_dir, "input_matrix.tsv"), sep="\t", index_col=0).index
     
     for i in range(1,len(X)):
         results_i = {}
@@ -481,3 +632,32 @@ def load_ccp_result(output_rds: str, input_path: str) -> dict:
         result[i] = results_i
     
     return result
+
+from typing import Union
+def compute_ari(s1: Union[pd.DataFrame, pd.Series, list], s2: Union[pd.Series, list] = None):
+    """Compute Adjusted Rand Index
+
+    Args:
+        s1 (Union[pd.DataFrame, pd.Series, list]): _description_
+        s2 (Union[pd.Series, list], optional): _description_. Defaults to None.
+
+    Returns:
+        float if passed two series or lists
+        pd.Dataframe if passed 
+    """
+    from sklearn.metrics.cluster import adjusted_rand_score
+    from itertools import combinations
+
+    def func(a,b):
+        overlap = np.intersect1d(a.dropna().index, b.dropna().index)
+        return adjusted_rand_score(a[overlap],b[overlap])
+    
+    if isinstance(s1, pd.DataFrame):
+        a = np.zeros((s1.shape[1], s1.shape[1]))
+        a[np.triu_indices(s1.shape[1], k=1)] = [func(s1[a],s1[b]) for a,b in combinations(s1.columns, r=2)]
+        a += a.T
+        np.fill_diagonal(a,1)
+        return pd.DataFrame(a, index=s1.columns, columns=s1.columns)
+    else:
+        assert s2 is not None, "Pass two lists or series to compute adjusted rand index!"
+        return func(s1,s2)

@@ -27,19 +27,20 @@ def missing_barplot(df: pd.DataFrame, ax: Union[plt.axes, None] = None, **barplo
     ax.legend().remove()
     ax.set_xlabel("% Missing", fontsize=12)
 
-def plot_clustermap(X, figsize=(8,8), xlabel=None, ylabel=None, vmin=-1, vmax=1, **kwargs):
+def plot_clustermap(X, figsize=(8,8), xlabel=None, ylabel=None, vmin=-1, vmax=1, 
+                    yticklabels=True, xticklabels=True, linecolor='k', linewidths=0.5, cmap='coolwarm', **kwargs):
     """Plot clustermp."""
     import seaborn as sns
 
     clustermap = sns.clustermap(
         X,
-        xticklabels=True,
-        yticklabels=True,
-        cmap='coolwarm',
+        xticklabels=xticklabels,
+        yticklabels=yticklabels,
+        cmap=cmap,
         vmin=vmin,
         vmax=vmax,
-        linecolor='k',
-        linewidths=0.5,
+        linecolor=linecolor,
+        linewidths=linewidths,
         figsize=figsize,
         **kwargs
     )

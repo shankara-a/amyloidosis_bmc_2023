@@ -170,3 +170,7 @@ data/imputed
 figures/
 data/raw/HemeCR.csv
 data/raw/Renal and heme response data.xlsx
+data/raw/AddnlPD.csv
+data/raw/Hemodialysis.csv
+data/raw/PeritonealDialysis.csv
+data/raw/KidneyTransplant.csv
