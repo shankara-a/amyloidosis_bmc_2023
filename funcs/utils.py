@@ -545,6 +545,50 @@ def fisher_exact(
 
     return pval.join(pval_adj).join(odds_r).reset_index()
 
+def run_statistical_comparisons(data_df, var, out_dir, tag=""):
+    """Run statistical comparisons
+        Wilcoxon Rank Sum Tests for numerical
+        Fisher's exact test for categorical
+
+    Args:
+        data_df (_type_): raw data
+        var (_type_): clustering to use
+        out_dir (_type_): output directory
+    """
+    import os
+    from sksurv.preprocessing import OneHotEncoder
+
+    # Run rank-sum tests
+    contrasts_df = get_contrasts(data_df, var, amyloid.qvars)
+    contrasts_df.to_csv(os.path.join(out_dir, "contrasts_qvars{}.tsv".format(tag)), sep="\t")
+
+    # Fisher exacts
+    # Drop Age & vars due to high-missingness
+    to_drop = [
+        "Age","Amyloid type","Secondary organ","Arrhythmia ","(Autonomic)",
+        "(Peripheral)","SIFE M-component","UIFE M-component",
+        "Education", "Abdominal fat pad CR staining", "Bone marrow CR staining"
+    ]
+
+    catvars = list(set(amyloid.catvars)-set(to_drop))
+
+    # If uncertain or equivocal, do not include in fisher exact
+    _cat_df = data_df[catvars].replace({
+        "uncertain":np.nan,
+        "equivocal":np.nan,
+        "involved":"yes",
+        "not_involved":"no"})
+
+    # Collapse race
+    _cat_df["Race"] = _cat_df["Race"].apply(lambda x: "Other" if x in ['Multiracial','Native_Hawaiian_Pacific', 'Unknown/other'] else x)
+    _cat_df = _cat_df.astype("category")
+
+    # One hot encoding
+    _cat_df = OneHotEncoder().fit_transform(_cat_df)
+    contrasts_fe_df = fisher_exact(_cat_df, data_df[var])
+    contrasts_fe_df['feat'] = contrasts_fe_df['feat'].str.replace("=yes","")
+    contrasts_fe_df.to_csv(os.path.join(out_dir, "contrasts_fe{}.tsv".format(tag)), sep="\t")
+
 #----------------------------
 # Machine Learning
 #----------------------------

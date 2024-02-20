@@ -54,6 +54,36 @@ def plot_clustermap(X, figsize=(8,8), xlabel=None, ylabel=None, vmin=-1, vmax=1,
     if ylabel is not None:
         _ = clustermap.ax_heatmap.set_ylabel(ylabel, fontsize=8)
 
+def plot_cmatrix(result, run_name="full_na_dataset", k=3, metas=[], **kwargs):
+    """_summary_
+
+    Args:
+        result (_type_): _description_
+        run_name (str, optional): _description_. Defaults to "full_na_dataset".
+        k (int, optional): _description_. Defaults to 3.
+    """
+    from scipy.cluster import hierarchy
+    from scipy.spatial import distance
+
+    cm_df = result[run_name][k-1]['cm']
+
+    # Compute linkages
+    row_linkage = hierarchy.linkage(distance.pdist(cm_df.values), method='average')
+    col_linkage = hierarchy.linkage(distance.pdist(cm_df.values.T), method='average')
+
+    # Create clustermap
+    sns.clustermap(
+        cm_df,
+        row_linkage=row_linkage,
+        col_linkage=col_linkage,
+        xticklabels=[],
+        yticklabels=[],
+        rasterized=True,
+        figsize=(6,6),
+        row_colors=[x[cm_df.index] for x in metas],
+        **kwargs
+        )
+    
 #----------------------------
 # Survival
 #----------------------------
@@ -188,7 +218,8 @@ def plot_pca_ax(
     show_legend=True,
     xlim=True,
     ylim=True,
-    add_mean_marker=False
+    add_mean_marker=False,
+    shuffle_rows=True
     ):
     """
     PCA Plot by axis.
@@ -198,29 +229,51 @@ def plot_pca_ax(
     Modes:
     """
     if cohort_s is not None:
+        cohort_s = cohort_s.fillna("n/a")
         cohorts = cohort_s.unique()
         nc = len(cohorts)
+
         if cohort_colors is None and cohort_args is None:
             cohort_colors = {i:j for i,j in zip(cohorts, sns.husl_palette(nc, s=1, l=0.6))}
+            
+        cohort_colors["n/a"] = "lightgrey"
+
         if cohort_args is None:
             cohort_args = {}
             for k in np.unique(cohort_s):
                 cohort_args[k] = {'color': cohort_colors[k], 'marker':'o', 'edgecolor':'none', 's':s}
-
+    
     if ax is None:
         fig,ax = plt.subplots(figsize=(6,6))
 
     if cohort_s is None:
         sa = ax.scatter(P_df[order[1]-1], P_df[order[0]-1], c=c, cmap=cmap, vmin=vmin, vmax=vmax, lw=lw, alpha=alpha, s=s, rasterized=True)
     else:
-        for k in np.unique(cohort_s):
-            i = cohort_s[cohort_s==k].index
-            ax.scatter(P_df.loc[i,order[1]-1], P_df.loc[i,order[0]-1], alpha=alpha, label=k, rasterized=True, **cohort_args[k])
+        if shuffle_rows is False:
+            for k in np.unique(cohort_s):
+                i = cohort_s[cohort_s==k].index
+                ax.scatter(P_df.loc[i,order[1]-1], P_df.loc[i,order[0]-1], alpha=alpha, label=k, rasterized=True, **cohort_args[k])
+        else:
+            # Always plot missing values first
+            if "n/a" in cohort_s.values:
+                k = "n/a"
+                i = cohort_s[cohort_s==k].index
+                ax.scatter(P_df.loc[i,order[1]-1], P_df.loc[i,order[0]-1], alpha=alpha, rasterized=True, **cohort_args[k])
+                
+            # Randomly shuffle other rows
+            for i in cohort_s[cohort_s!="n/a"].sample(frac=1).index:
+                k = cohort_s[i]
+                ax.scatter(P_df.loc[i,order[1]-1], P_df.loc[i,order[0]-1], alpha=alpha, rasterized=True, **cohort_args[k])
+
+            for k in np.unique(cohort_s):
+                if k!="n/a":
+                    ax.scatter(0, 0, alpha=0, label=k, rasterized=True, **cohort_args[k])
 
         if add_mean_marker:
             for k in np.unique(cohort_s):
-                a,b = P_df.join(cohort_s).groupby(cohort_s.name).mean().loc[k,[order[1]-1,order[0]-1]]
-                ax.plot(a, b,'o', c=cohort_args[k]["color"], markersize=10, markeredgecolor='k')
+                if k!="n/a":
+                    a,b = P_df.join(cohort_s).groupby(cohort_s.name).mean().loc[k,[order[1]-1,order[0]-1]]
+                    ax.plot(a, b,'o', c=cohort_args[k]["color"], markersize=10, markeredgecolor='k')
 
     format_plot(ax, fontsize=10)
     ax.set_xlabel('PC {0} ({1:.2f}%)'.format(order[1], pca.explained_variance_ratio_[order[1]-1]*100), fontsize=12)
