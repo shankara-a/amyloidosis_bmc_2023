@@ -276,6 +276,46 @@ def get_time_eskd(row, start_time: str = "Date of diagnosis"):
 
     time = end_time - row[start_time] 
     return time / pd.Timedelta(days=365.25)
+
+# Competing risk
+def get_cr_event(row: pd.Series, risk_1="treatment_eskd", risk_2="status") -> int:
+    """Get competing risk event.
+
+    Args:
+        row (pd.Series): Series
+        risk_1 (str, optional): Risk 1 (will be assigned 1). Defaults to "treatment_eskd".
+        risk_2 (str, optional): Risk 2 (will be assigned 2). Defaults to "status".
+
+    Returns:
+        int: _description_
+    """
+    if row[risk_1] == 1:
+        return 1
+    elif row[risk_2] == 1:
+        return 2
+    else:
+        return 0
+
+def get_cr_time(row: pd.Series, start_time="Date of diagnosis"):
+    """Get competing risk time
+
+    Args:
+        row (pd.Series): _description_
+        start_time (str, optional): _description_. Defaults to "Date of diagnosis".
+
+    Returns:
+        _type_: _description_
+    """
+    import pandas as pd
+    
+    if row['treatment_eskd'] == 1:
+        cr_time = row['Date of RRT Start'] - row[start_time]
+    elif row['status'] == 1:
+        cr_time = row['Date of death'] - row[start_time]
+    else:
+        cr_time = row['Date of last visit'] - row[start_time]
+    
+    return cr_time / pd.Timedelta(days=365.25)
     
 #----------------------------
 # Dimensionality Reduction
