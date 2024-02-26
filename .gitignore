@@ -160,10 +160,12 @@ cython_debug/
 #.idea/
 data/raw/AL dataset for machine learning analysis.xlsx
 .gitignore
-data/raw/*
-tables/*
 
+tables/*
+data/raw
 data/processed
 data/clustering
 data/imputed
 figures/
+
+_*.ipynb
