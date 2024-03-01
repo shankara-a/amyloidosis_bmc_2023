@@ -745,3 +745,71 @@ def compute_ari(s1: Union[pd.DataFrame, pd.Series, list], s2: Union[pd.Series, l
     else:
         assert s2 is not None, "Pass two lists or series to compute adjusted rand index!"
         return func(s1,s2)
+    
+def cv_scorer(
+    X: pd.DataFrame, 
+    y: pd.DataFrame, 
+    models: dict, 
+    folds: int = 5, 
+    random_state: int = 42):
+    """Cross validation scoring.
+
+    Args:
+        X (pd.DataFrame): _description_
+        y (pd.DataFrame): _description_
+        models (dict): _description_
+        folds (int, optional): _description_. Defaults to 5.
+        random_state (int, optional): _description_. Defaults to 42.
+
+    Returns:
+        _type_: _description_
+    """
+    from sklearn.model_selection import KFold
+    from sklearn.metrics import classification_report
+    from sklearn.metrics import cohen_kappa_score
+
+    # Initialize fold split
+    kf = KFold(n_splits=folds, shuffle=True, random_state=random_state)
+
+    # Results
+    results_df = list()
+
+    for key in models.keys():
+        for i, (train_index, test_index) in enumerate(kf.split(X)):
+            models[key].fit(X.iloc[train_index,:], y.iloc[train_index])
+            y_pred = models[key].predict(X.iloc[test_index,:])
+
+            # Generate classificaiton report
+            cr = classification_report(y.iloc[test_index], y_pred, output_dict=True)
+            cr = pd.DataFrame.from_dict(cr).drop(
+                columns=['macro avg','weighted avg'], 
+                index=['support']).reset_index()
+            
+            # Add kappa score
+            cr['kappa'] = cohen_kappa_score(y.iloc[test_index], y_pred)
+
+            # Naming
+            cr['Classifier'] = key
+            cr['k'] = i
+            cr = cr.rename(columns={'index':'metric'})
+
+            results_df.append(cr)
+    
+    return pd.concat(results_df)
+
+def mu_ci(data, confidence:float = 0.95):
+    """Create string of mean & CI for tables.
+
+    Args:
+        data (_type_): _description_
+        confidence (float, optional): _description_. Defaults to 0.95.
+
+    Returns:
+        _type_: _description_
+    """
+    from scipy.stats import sem,t
+    
+    n = len(data)
+    m, se = np.mean(data), sem(data)
+    h = se * t.ppf((1 + confidence) / 2, n - 1)
+    return "{:.3f} ({:.2f}-{:.2f})".format(m, m - h, m + h)

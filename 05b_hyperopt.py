@@ -11,7 +11,9 @@ import funcs.amyloid as amyloid
 from sklearn.preprocessing import StandardScaler
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 from hpsklearn import HyperoptEstimator
-from hpsklearn import random_forest_classifier, gaussian_nb, k_neighbors_classifier, xgboost_classification, svc
+from hpsklearn import random_forest_classifier, gaussian_nb, \
+        k_neighbors_classifier, xgboost_classification, \
+        svc, decision_tree_classifier, mlp_classifier
 
 # This script uses Hyperopt for bayesian hyperparameter optimization
 # for classification of subgroups from lab values
@@ -38,25 +40,32 @@ X = pd.DataFrame(StandardScaler().fit_transform(Xi_mice.values), index=Xi_mice.i
 y = data_df.loc[Xi_mice.index, 'fna3_cluster_n'].map({'Low':0,'Intermediate':1, 'High': 2})
 
 # --------------------------------
-# Fun Hyperopt
+# Run Hyperopt
 # --------------------------------
 if __name__ == "__main__":
+    names = ["mlp","rf","nb","knn","xgb","svc","tree"]
+
     classifiers_to_use = [
+        mlp_classifier("mlp"),
         random_forest_classifier("rf"),
         gaussian_nb("nb"),
         k_neighbors_classifier("knn"),
         xgboost_classification("xgb"),
-        svc("svc")
+        svc("svc"),
+        decision_tree_classifier("tree")
     ]
 
-    names = ["rf","nb","knn","xgb","svc"]
-
     for idx, classifier in enumerate(classifiers_to_use):
+        print("---------------- Running for {} ----------------".format(names[idx]))
         estim = HyperoptEstimator(
             classifier=classifier,
+            preprocessing=[],
             algo=tpe.suggest,
             max_evals=100,
-            trial_timeout=120)
+            trial_timeout=120,
+            seed=RANDOM_STATE,
+            n_jobs=-1
+        )
         
         # Search the hyperparameter space based on the data
         estim.fit(X, y)
