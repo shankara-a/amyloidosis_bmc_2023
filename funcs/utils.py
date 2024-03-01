@@ -62,7 +62,7 @@ def data_formatter(
         X["Race"] = X["Race"].apply(lambda x: "Other" if x in ['American_Indian_Alaska_Native','Multiracial','Native_Hawaiian_Pacific', 'Unknown/other'] else x)
 
     # Add computed BU Staging
-    X["BU Stage (Computed)"] = X.apply(lambda row: assign_bu_stage(row),1)
+    # X["BU Stage (Computed)"] = X.apply(lambda row: assign_bu_stage(row),1)
 
     # Split to categorical variables
     categorical_cols = X.loc[:,X.dtypes == "object"].columns

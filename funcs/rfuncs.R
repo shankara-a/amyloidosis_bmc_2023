@@ -93,7 +93,7 @@ getIncidenceGroup <- function(clust.adjsurv, times.to.use=c(1,5,10)){
   ci.df$boot_surv <- signif((1-ci.df$boot_surv)*100,3)
   ci.df$ci_upper <- signif((1-ci.df$ci_upper)*100,3)
   ci.df$ci_lower <- signif((1-ci.df$ci_lower)*100,3)
-  ci.df$CI <- paste(ci.df$boot_surv, " (", ci.df$ci_lower, "-", ci.df$ci_upper, ")", sep="")
+  ci.df$CI <- paste(ci.df$boot_surv, " (", ci.df$ci_upper, "-", ci.df$ci_lower, ")", sep="")
 
   result.df <- spread(ci.df[,c("time","CI","group")], key = time, value = CI) %>% 
     mutate(group = factor(group)) %>%
@@ -145,7 +145,7 @@ plotSurv <- function(fit, data.df, legend.title, legend.labs, ...){
         data = data.df,
         risk.table = TRUE,
         pval = TRUE,
-        conf.int = TRUE,
+        conf.int = F,
         xlab = "Time (Yr)",
         risk.table.y.text.col = T,
         risk.table.y.text = F,
