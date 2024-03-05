@@ -7,6 +7,9 @@ suppressMessages(library(adjustedCurves))
 suppressMessages(library(tidyverse))
 suppressMessages(library(cmprsk))
 suppressMessages(library(caret))
+suppressMessages(library(ggplot2))
+suppressMessages(library(ggalluvial))
+suppressMessages(library(gridExtra))
 
 getCoef <- function(mod){
     df <- data.frame(summary(mod)$coef)
@@ -154,5 +157,142 @@ plotSurv <- function(fit, data.df, legend.title, legend.labs, ...){
         ...
     )
     
+    return(p)
+}
+
+plotAlluvial <- function(df, a, b, title="", colors=NULL){
+    if (!a %in% colnames(df) || !b %in% colnames(df)) {
+        stop("Cluster column names not found in dataframe.")
+    }
+
+    # Filter out missing values
+    data.df <- df[,c(a,b)]
+    data.df <- na.omit(data.df)
+        
+    # Create alluvial plot
+    p <- ggplot(data.df, aes(axis1 = !!sym(a), axis2 = !!sym(b))) +
+        geom_alluvium(aes(fill = !!sym(a))) +
+        geom_stratum() +
+        geom_text(stat = "stratum", aes(label = after_stat(stratum))) +
+        theme_minimal() +
+        labs(title = title, y = "Patients") +
+        theme(
+            axis.text.x = element_blank(), 
+            axis.ticks.x = element_blank(),
+            panel.grid.major.x = element_blank(),
+            panel.grid.minor.x = element_blank()) + 
+            #panel.grid.major.y = element_line(color = "transparent")) + 
+        scale_fill_manual(values = colors)
+
+    return(p)
+}
+
+plotEnrichment <- function(contrasts.df, pval.thresh=0.1, filter=NULL, palette='RdBu', h=13, w=15, s_color='black', fix_id=T){
+    contrasts.df$sig <- contrasts.df$fdr_bh < pval.thresh
+    contrasts.df$logq <- -log10(contrasts.df$fdr_bh)
+    ### Order axis by dendrogram
+    # Load data
+    X <- contrasts.df[,c('X','cluster','statistic')]
+    X <- reshape(X[,c('X','cluster','statistic')], timevar='cluster', idvar='X', direction='wide',)
+    rownames(X) <- X$X
+    X$X <- NULL
+
+    X[is.na(X)] <- 0
+
+    # Build the dendrogram
+    dend <- as.dendrogram(hclust(d = dist(x = X)))
+    dendro.plot <- ggdendrogram(dend,rotate = TRUE)
+
+    # Use dendrogram order to order colomn
+    order <- order.dendrogram(dend) # dendrogram order
+    contrasts.df$X <- factor(x = contrasts.df$X, levels = unique(contrasts.df$X)[order], ordered = TRUE)
+
+    ### Balloonplot
+    options(repr.plot.width=w, repr.plot.height=h)
+
+    p <- ggballoonplot(
+        contrasts.df,
+        x="cluster",
+        y="X",
+        fill = "statistic",
+        size="logq",
+        color=ifelse(contrasts.df$sig==T, s_color, "lightgrey")
+        ) +
+        scale_fill_distiller(palette=palette, limit = max(abs(contrasts.df$statistic)) * c(-1, 1))+
+        labs(x="", y="", fill="Enrichment", size="-log10 Adj. P-val") + theme_linedraw() +
+        theme(axis.text.x=element_text(angle=0))
+
+    return(p)
+}
+
+plotFisherExactEnrichment <- function(contrasts.df, pval.thresh=0.1, filter=NULL, palette='Blues', h=13, w=15, s_color='black', fix_id=T){
+    contrasts.df$sig <- contrasts.df$pval_adj < pval.thresh
+    contrasts.df$logq <- -log10(contrasts.df$pval_adj)
+    
+    # Remove non-significants
+    contrasts.df <- contrasts.df[contrasts.df$feat %in% contrasts.df[contrasts.df$sig,]$feat,]
+
+    ### Order axis by dendrogram
+    # Load data
+    X <- contrasts.df[,c('feat','cluster','odds_r')]
+    X <- reshape(X[,c('feat','cluster','odds_r')], timevar='cluster', idvar='feat', direction='wide',)
+    rownames(X) <- X$feat
+    X$feat <- NULL
+
+    X[is.na(X)] <- 0
+
+    # Build the dendrogram
+    dend <- as.dendrogram(hclust(d = dist(x = X)))
+    dendro.plot <- ggdendrogram(dend,rotate = TRUE)
+
+    # Use dendrogram order to order colomn
+    order <- order.dendrogram(dend) # dendrogram order
+    contrasts.df$feat <- factor(x = contrasts.df$feat, levels = unique(contrasts.df$feat)[order], ordered = TRUE)
+
+    ### Balloonplot
+    options(repr.plot.width=w, repr.plot.height=h)
+
+    p <- ggballoonplot(
+        contrasts.df,
+        x="cluster",
+        y="feat",
+        fill = "odds_r",
+        size="logq",
+        color=ifelse(contrasts.df$sig==T, s_color, "lightgrey")
+        ) +
+        scale_fill_distiller(palette=palette, limit = max(abs(contrasts.df$odds_r)) * c(0, 1))+
+        labs(x="", y="", fill="log Odds Ratio", size="-log10 Adj. P-val") + theme_linedraw() +
+        theme(axis.text.x=element_text(angle=0))
+
+    return(p)
+}
+
+plotE <- function(f1, f2){
+    # Continuous
+    contrasts.df <- read.table(f1, sep="\t", header=T)
+    contrasts.df$cluster <- factor(contrasts.df$fna3_cluster_n, levels=c("Low","Intermediate","High"), ordered=T)
+
+    # Fisher Exact
+    contrasts.fe.df <- read.table(f2, sep="\t", header=T)
+    contrasts.fe.df$odds_r <- -log10(contrasts.fe.df$odds_r)
+    contrasts.fe.df <- contrasts.fe.df %>% mutate_all(function(x) ifelse(is.infinite(x), 0, x))
+    contrasts.fe.df$cluster <- factor(contrasts.fe.df$fna3_cluster_n, levels=c("Low","Intermediate","High"), ordered=T)
+
+    # Create plots
+    p1 <- plotFisherExactEnrichment(contrasts.fe.df)
+    p2 <- plotEnrichment(contrasts.df)
+
+    options(repr.plot.width=10, repr.plot.height=8)
+    return(grid.arrange(p1, p2, nrow=1))
+}
+
+plotE1 <- function(f1){
+    # Continuous
+    contrasts.df <- read.table(f1, sep="\t", header=T)
+    contrasts.df$cluster <- factor(contrasts.df$fna3_cluster_n, levels=c("Low","Intermediate","High"), ordered=T)
+    p <- plotEnrichment(contrasts.df) +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1, size=10))
+
+    options(repr.plot.width=5, repr.plot.height=8)
     return(p)
 }

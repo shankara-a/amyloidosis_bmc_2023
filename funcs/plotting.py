@@ -6,6 +6,9 @@ import seaborn as sns
 from typing import Union
 import matplotlib.ticker as ticker
 
+# -- import packages: --------------------------------------------------------------------
+import funcs.amyloid as amyloid
+
 #----------------------------
 # Data Exploration
 #----------------------------
@@ -84,6 +87,39 @@ def plot_cmatrix(result, run_name="full_na_dataset", k=3, metas=[], **kwargs):
         **kwargs
         )
     
+def plot_feature_importance(model, figsize=(4,5), min_importance=0.01, ax=None, color='lightblue', **kwargs):
+    """Plot feature importances
+
+    From tree-based prediction mdoels
+
+    Args:
+        model (_type_): _description_
+        figsize (tuple, optional): _description_. Defaults to (4,5).
+        min_importance (float, optional): _description_. Defaults to 0.01.
+    """
+    features_df = pd.DataFrame(
+        model.feature_importances_, 
+        index=model.feature_names_in_, 
+        columns=['importance']
+    )
+
+    if ax is None:
+        fig, ax = plt.subplots(figsize=figsize)
+
+    features_df[features_df['importance']>min_importance]['importance'].sort_values(ascending=True).rename(
+        index=amyloid.ddict_unclean).plot.barh(
+            ax=ax, 
+            width=1, 
+            edgecolor='k', 
+            color=color,
+            **kwargs
+    )
+
+    ax.set_xlabel("Feature Importance")
+    _ = ax.set_yticklabels(ax.get_yticklabels(), fontsize=7)
+
+    return features_df
+
 #----------------------------
 # Survival
 #----------------------------

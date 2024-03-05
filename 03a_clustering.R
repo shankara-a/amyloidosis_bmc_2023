@@ -15,49 +15,49 @@ seed <- 123
 # Imputed files used for clustering are found in data/imputed/**
 # Loop through all datasets with different imputed values
 # ------------------------------
-# for (filename in Sys.glob("data/imputed/**/*.tsv")){
-#     # Save filenames
-#     dataset.name <- strsplit(filename, "/")[[1]][3]
-#     imputed.name <- strsplit(strsplit(filename, "/")[[1]][4],".tsv")[[1]][1]
-#     out.dir <- paste("data/clustering", dataset.name, imputed.name, sep="/")
+for (filename in Sys.glob("data/imputed/**/*.tsv")){
+    # Save filenames
+    dataset.name <- strsplit(filename, "/")[[1]][3]
+    imputed.name <- strsplit(strsplit(filename, "/")[[1]][4],".tsv")[[1]][1]
+    out.dir <- paste("data/clustering", dataset.name, imputed.name, sep="/")
 
-#     print(paste("* Running for dataset: ", dataset.name, " for imputed data: ", imputed.name))
-#     print(paste("   Writing out to: ",out.dir))
+    print(paste("* Running for dataset: ", dataset.name, " for imputed data: ", imputed.name))
+    print(paste("   Writing out to: ",out.dir))
 
-#     # Load data
-#     X <- read.table(filename, sep="\t", header=T)
+    # Load data
+    X <- read.table(filename, sep="\t", header=T)
 
-#     if ("Code.ID" %in% colnames(X)){
-#         rownames(X) <- X$Code.ID
-#         X$Code.ID <- NULL
-#     }
+    if ("Code.ID" %in% colnames(X)){
+        rownames(X) <- X$Code.ID
+        X$Code.ID <- NULL
+    }
     
-#     # Scale data for clustering
-#     X.scaled <- scale(complete(X))
+    # Scale data for clustering
+    X.scaled <- scale(complete(X))
 
-#     # Write out input matrix
-#     write.table(X.scaled, paste(out.dir, "input_matrix.tsv", sep="/"), sep="\t")
+    # Write out input matrix
+    write.table(X.scaled, paste(out.dir, "input_matrix.tsv", sep="/"), sep="\t")
 
-#     # Run clustering
-#     ccp = ConsensusClusterPlus(
-#         as.matrix(t(X.scaled)),
-#         maxK=maxK,
-#         reps=reps,
-#         pItem=pItem,
-#         pFeature=pFeature,
-#         clusterAlg="hc",
-#         distance="spearman",
-#         title=out.dir,
-#         seed=seed,
-#         plot="png"
-#     )
+    # Run clustering
+    ccp = ConsensusClusterPlus(
+        as.matrix(t(X.scaled)),
+        maxK=maxK,
+        reps=reps,
+        pItem=pItem,
+        pFeature=pFeature,
+        clusterAlg="hc",
+        distance="spearman",
+        title=out.dir,
+        seed=seed,
+        plot="png"
+    )
 
-#     # Save files
-#     icl = calcICL(ccp, title=out.dir, plot="png")
-#     write.table(icl[["itemConsensus"]], file.path(out.dir, "item_consensus.tsv"), sep='\t')
-#     write.table(icl[["clusterConsensus"]], file.path(out.dir, "cc_result.tsv"), sep='\t')
-#     saveRDS(ccp, file = file.path(out.dir, "ccp.rds"))
-# }
+    # Save files
+    icl = calcICL(ccp, title=out.dir, plot="png")
+    write.table(icl[["itemConsensus"]], file.path(out.dir, "item_consensus.tsv"), sep='\t')
+    write.table(icl[["clusterConsensus"]], file.path(out.dir, "cc_result.tsv"), sep='\t')
+    saveRDS(ccp, file = file.path(out.dir, "ccp.rds"))
+}
 
 # ------------------------------
 # Run consensus clustering w/ missing values

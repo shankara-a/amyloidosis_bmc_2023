@@ -162,10 +162,7 @@ data/raw/AL dataset for machine learning analysis.xlsx
 .gitignore
 
 tables/*
-data/raw
-data/processed
-data/clustering
-data/imputed
+data
 figures/
 
 _*.ipynb
