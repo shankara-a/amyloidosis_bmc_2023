@@ -120,6 +120,42 @@ def plot_feature_importance(model, figsize=(4,5), min_importance=0.01, ax=None, 
 
     return features_df
 
+def plot_clust_metrics(df, x="k", y="Silhouette", ax=None, figsize=(5,4)):
+    """_summary_
+
+    Args:
+        df (_type_): _description_
+        x (str, optional): _description_. Defaults to "k".
+        y (str, optional): _description_. Defaults to "Silhouette".
+        figsize (tuple, optional): _description_. Defaults to (5,4).
+    """
+    summary_df = df.groupby(["method", x])[y].agg(["mean", "std"]).reset_index()
+
+    if ax is None:
+        _, ax = plt.subplots(figsize=figsize)
+
+    for method, group_df in summary_df.groupby("method"):
+        ax.errorbar(
+            group_df["k"], 
+            group_df["mean"], 
+            yerr=group_df["std"], 
+            label=method, 
+            marker='o',
+        )
+
+        if method=="ccp":
+            ax.scatter(group_df["k"], group_df["mean"], edgecolor='black', zorder=10)
+        else:
+            ax.scatter(group_df["k"], group_df["mean"], edgecolor='black', zorder=7)
+
+    ax.set_xlabel("k")
+    ax.set_ylabel(y)
+    ax.legend(prop={'size': 7}, markerscale=.5).get_frame().set_facecolor('white')
+
+    for _, spine in ax.spines.items():
+        spine.set_visible(True)
+        spine.set_color('black')
+
 #----------------------------
 # Survival
 #----------------------------

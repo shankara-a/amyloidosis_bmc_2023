@@ -11,6 +11,42 @@ suppressMessages(library(ggplot2))
 suppressMessages(library(ggalluvial))
 suppressMessages(library(gridExtra))
 
+getDistMatrix <- function(file.name, clustering_metrics=FALSE){
+    # Load file
+    X <- read.table(file.name, sep="\t", header=T)
+    rownames(X) <- X$Code.ID
+    X$Code.ID <- NULL
+
+    # Scale data
+    X.scaled <- scale(complete(X))
+
+    # Compute distances with pairwise complete observations
+    dt <- as.dist(1-cor(as.matrix(t(X.scaled)), method="spearman", use="pairwise.complete.obs"))
+    x = as.matrix(dt)
+    x = x[rowSums(is.na(x)) == 0, colSums(is.na(x)) == 0, drop = FALSE]
+    dt = as.dist(x)
+
+    if (clustering_metrics==TRUE){
+            # Plots
+            p1 <- fviz_nbclust(X.scaled[rownames(x),], FUN = cluster::pam, diss=dt, method = "silhouette") + labs(title='PAM')
+            p2 <- fviz_nbclust(X.scaled[rownames(x),], FUN = hcut, diss=dt, method = "silhouette") + labs(title='Hierarchical')
+            p3 <- fviz_nbclust(X.scaled[rownames(x),], FUN = cluster::fanny, diss=dt, method = "silhouette") + labs(title='Fanny')
+            p4 <- fviz_nbclust(X.scaled[rownames(x),], FUN = cluster::clara, diss=dt, method = "silhouette", correct.d=T) + labs(title='CLARA')
+
+            p11 <- fviz_nbclust(X.scaled[rownames(x),], FUN = cluster::pam, diss=dt, method = "wss") + labs(title='PAM')
+            p21 <- fviz_nbclust(X.scaled[rownames(x),], FUN = hcut, diss=dt, method = "wss") + labs(title='Hierarchical')
+            p31 <- fviz_nbclust(X.scaled[rownames(x),], FUN = cluster::fanny, diss=dt, method = "wss") + labs(title='Fanny')
+            p41 <- fviz_nbclust(X.scaled[rownames(x),], FUN = cluster::clara, diss=dt, method = "wss", correct.d=T) + labs(title='CLARA')
+
+            options(repr.plot.width=16, repr.plot.height=6)
+            p <- grid.arrange(p1,p2,p3,p4,p11,p21,p31,p41, nrow=2)
+
+            return(list("X" = X.scaled, "dt" = dt, "Xfilt" = X.scaled[rownames(x),], "plot"=p))
+    } else{
+        return(list("X" = X.scaled, "dt" = dt, "Xfilt" = X.scaled[rownames(x),]))
+    }
+}
+
 getCoef <- function(mod){
     df <- data.frame(summary(mod)$coef)
     df$coef_exp <- signif(exp(df$coef),3)
@@ -295,4 +331,105 @@ plotE1 <- function(f1){
 
     options(repr.plot.width=5, repr.plot.height=8)
     return(p)
+}
+
+# ----------------------------------------
+# Clustering
+# ----------------------------------------
+computeClusterMetrics <- function(dt, clusters.df){
+    sil_list = list()
+    connect_list = list()
+    dunn_list = list()
+    i=1
+    j=1
+    k=1
+
+    for (col in names(clusters.df)){
+        
+        try({
+            # Silhouette score
+            sil_list[[i]] <- mean(silhouette(clusters.df[,col], dt)[,3])
+            names(sil_list)[j] <- col
+            i <- i+1
+
+            # Connectivity
+            connect_list[[j]] <- connectivity(clusters.df[,col], distance=dt)
+            names(connect_list)[j] <- col
+            j <- j+1
+
+            # Dunn
+            dunn_list[[k]] <- dunn(clusters.df[,col], distance=dt)
+            names(dunn_list)[k] <- col
+            k <- k+1
+        })
+    }
+
+    metrics.df <- data.frame(cbind(cbind(t(data.frame(sil_list)),t(data.frame(connect_list))), t(data.frame(dunn_list))))
+    names(metrics.df) <- c("Silhouette","Connectivity","Dunn")
+
+    return(metrics.df)
+}
+
+runClusterings <- function(X, dt, ks=c(2,3,4,5,6)){
+    # Clusterings with missing valuess
+    result_list = list()
+    i <- 1
+
+    for (k in ks){
+        # Heirarchical Clustering
+        df <- data.frame(cutree(hclust(dt, method="average"),k))
+        names(df)[1] <- paste("hc",k, sep="_")
+        result_list[[i]]  <- df
+        i <- i+1
+
+        # Partition Around Medoids
+        df <- data.frame(pam(dt,k)$cluster)
+        names(df)[1] <- paste("pam",k, sep="_")
+
+        result_list[[i]]  <- df
+        i <- i+1
+
+        # Fanny
+        df <- data.frame(fanny(dt, k, memb.exp=1, maxit=1000)$cluster)
+        names(df)[1] <- paste("fanny",k, sep="_")
+
+        result_list[[i]]  <- df
+        i <- i+1
+
+        # Clara
+        df <- data.frame(clara(X, k, correct.d=T)$cluster)
+        names(df)[1] <- paste("clara",k, sep="_")
+
+        result_list[[i]]  <- df
+        i <- i+1
+    }
+
+    return(do.call(cbind, result_list))
+}
+
+computeClusterMetrics <- function(dt, clusters.df){
+    sil_list = list()
+    connect_list = list()
+    i=1
+    j=1
+
+    for (col in names(clusters.df)){
+        
+        try({
+            # Silhouette score
+            sil_list[[i]] <- mean(silhouette(clusters.df[,col], dt)[,3])
+            names(sil_list)[j] <- col
+            i <- i+1
+
+            # Connectivity
+            connect_list[[j]] <- connectivity(clusters.df[,col], distance=dt)
+            names(connect_list)[j] <- col
+            j <- j+1
+        })
+    }
+
+    metrics.df <- data.frame(cbind(cbind(t(data.frame(sil_list)),t(data.frame(connect_list)))))
+    names(metrics.df) <- c("Silhouette","Connectivity")
+
+    return(metrics.df)
 }
