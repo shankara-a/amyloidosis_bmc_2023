@@ -1,8 +1,8 @@
 #!/usr/bin/Rscript
 
 # -- import packages: --------------------------------------------------------------------
-library(ConsensusClusterPlus)
-library(mice)
+suppressMessages(library(ConsensusClusterPlus))
+suppressMessages(library(mice))
 
 # Clustering inputs
 maxK <- 6

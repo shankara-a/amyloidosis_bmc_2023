@@ -39,7 +39,7 @@ for (i in 1:5){
     rownames(X.imputed) <- rownames(X)
     
     write.table(X.imputed, paste("data/imputed/2004_dataset/mice_qvars_0",i,".tsv", sep=""), sep='\t')
-
+}
 # -------------------------
 # 2008 dataset
 # -------------------------

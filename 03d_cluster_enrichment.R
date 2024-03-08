@@ -17,7 +17,7 @@ plotE(
 )
 dev.off()
 
-# Figure S3-4
+# Figure S4-5
 p1 <- plotE1("data/clustering/full_na_dataset/subgroup_comparisons/contrasts_qvars_cardiac_stage_2.tsv")
 p2 <- plotE1("data/clustering/full_na_dataset/subgroup_comparisons/contrasts_qvars_renal_stage_1.tsv")
 
