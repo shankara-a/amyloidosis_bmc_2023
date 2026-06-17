@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AL Amyloidosis Subtype Explorer</title>
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --low:  #2ca02c;
+      --int:  #ff7f0e;
+      --high: #d62728;
+      --bg:   #f8f9fa;
+      --card: #ffffff;
+      --border: #dee2e6;
+      --text: #212529;
+      --muted: #6c757d;
+      --accent: #0d6efd;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    header {
+      background: #1a1a2e;
+      color: white;
+      padding: 1.25rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    header h1 { font-size: 1.3rem; font-weight: 600; }
+    header p  { font-size: 0.85rem; opacity: 0.75; margin-top: 0.2rem; }
+
+    nav {
+      display: flex;
+      gap: 0;
+      background: #16213e;
+      padding: 0 2rem;
+    }
+    nav button {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.65);
+      padding: 0.75rem 1.25rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      border-bottom: 3px solid transparent;
+      transition: all 0.15s;
+    }
+    nav button.active,
+    nav button:hover {
+      color: white;
+      border-bottom-color: #4d9de0;
+    }
+
+    .page { display: none; padding: 1.5rem 2rem; max-width: 1400px; margin: 0 auto; }
+    .page.active { display: block; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+    .card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--text); }
+
+    .row { display: flex; gap: 1.25rem; }
+    .col { flex: 1; min-width: 0; }
+    .col-auto { flex: none; }
+
+    /* Controls */
+    label { display: block; font-size: 0.8rem; font-weight: 500; color: var(--muted); margin-bottom: 0.3rem; }
+    select, input[type="number"] {
+      width: 100%;
+      padding: 0.45rem 0.65rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.875rem;
+      background: white;
+      color: var(--text);
+    }
+    select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+
+    /* Legend pills */
+    .legend { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .legend-item {
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 0.82rem;
+    }
+    .dot {
+      width: 12px; height: 12px; border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* Stats row */
+    .stats { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .stat-box {
+      flex: 1; min-width: 120px;
+      border-radius: 8px; padding: 0.75rem 1rem;
+      text-align: center;
+    }
+    .stat-box.low  { background: #d4edda; }
+    .stat-box.int  { background: #fff3cd; }
+    .stat-box.high { background: #f8d7da; }
+    .stat-box .val { font-size: 1.5rem; font-weight: 700; }
+    .stat-box .lbl { font-size: 0.75rem; color: var(--muted); margin-top: 0.1rem; }
+
+    /* Calculator */
+    .calc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    .calc-field label { margin-bottom: 0.25rem; }
+    .calc-field input { margin-bottom: 0; }
+    .calc-field .hint { font-size: 0.72rem; color: var(--muted); margin-top: 0.2rem; }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 0.6rem 1.5rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-primary:hover { background: #0b5ed7; }
+    .btn-primary:disabled { background: #adb5bd; cursor: not-allowed; }
+
+    /* Result bars */
+    .result-row {
+      display: flex; align-items: center; gap: 0.75rem;
+      margin-bottom: 0.6rem;
+    }
+    .result-label { width: 110px; font-size: 0.85rem; font-weight: 500; }
+    .result-bar-bg {
+      flex: 1; height: 22px; background: #e9ecef; border-radius: 4px; overflow: hidden;
+    }
+    .result-bar {
+      height: 100%; border-radius: 4px;
+      display: flex; align-items: center; justify-content: flex-end;
+      padding-right: 6px;
+      font-size: 0.78rem; font-weight: 600; color: white;
+      transition: width 0.4s ease;
+    }
+    .result-bar.low  { background: var(--low); }
+    .result-bar.int  { background: var(--int); }
+    .result-bar.high { background: var(--high); }
+
+    /* Result callout */
+    .result-callout {
+      border-radius: 8px; padding: 1rem 1.25rem; margin-top: 1rem;
+      font-size: 0.9rem;
+    }
+    .result-callout.low  { background: #d4edda; border-left: 4px solid var(--low); }
+    .result-callout.int  { background: #fff3cd; border-left: 4px solid var(--int); }
+    .result-callout.high { background: #f8d7da; border-left: 4px solid var(--high); }
+    .result-callout strong { font-size: 1rem; }
+
+    #calc-status { font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem; }
+
+    /* Plot containers */
+    #pca-plot, #surv-plot, #calc-surv-plot { width: 100%; }
+    #pca-plot   { aspect-ratio: 1 / 1; }
+    #surv-plot  { aspect-ratio: 1 / 1; }
+    #calc-surv-plot { height: 360px; }
+
+    #pca-legend {
+      width: 130px;
+      flex-shrink: 0;
+      font-size: 0.78rem;
+      line-height: 1.5;
+      max-height: 420px;
+      overflow-y: auto;
+      padding-right: 0.25rem;
+    }
+    #pca-legend .leg-section {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin: 0.6rem 0 0.25rem;
+    }
+    #pca-legend .leg-section:first-child { margin-top: 0; }
+    #pca-legend .leg-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-bottom: 0.2rem;
+      color: var(--text);
+    }
+    #pca-legend .leg-swatch {
+      width: 10px; height: 10px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    #pca-legend .leg-swatch.circle { border-radius: 50%; }
+
+    .loading {
+      display: flex; align-items: center; justify-content: center;
+      height: 200px; font-size: 0.9rem; color: var(--muted);
+    }
+
+    /* Checkbox toggles */
+    .toggle-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .toggle-btn {
+      border: 1.5px solid var(--border);
+      background: white;
+      border-radius: 20px;
+      padding: 0.25rem 0.75rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .toggle-btn.active { color: white; border-color: transparent; }
+    .toggle-btn.low.active  { background: var(--low); }
+    .toggle-btn.int.active  { background: var(--int); }
+    .toggle-btn.high.active { background: var(--high); }
+
+    footer {
+      text-align: center;
+      padding: 1.5rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      margin-top: 2rem;
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+
+    @media (max-width: 768px) {
+      .row { flex-direction: column; }
+      header, nav, .page { padding-left: 1rem; padding-right: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>AL Amyloidosis Subtype Explorer</h1>
+    <p>Interactive companion to Anand et al., <em>American Journal of Hematology</em> 2023</p>
+  </div>
+</header>
+
+<nav>
+  <button class="active" onclick="showPage('pca')">PCA &amp; Survival</button>
+  <button onclick="showPage('calculator')">Subtype Calculator</button>
+  <button onclick="showPage('about')">About</button>
+</nav>
+
+<!-- =====================================================================
+     PCA + SURVIVAL PAGE (merged)
+====================================================================== -->
+<div id="page-pca" class="page active">
+
+  <!-- Controls row above both plots -->
+  <div class="card" style="padding-bottom:0.75rem;">
+    <div class="row" style="align-items:flex-end;flex-wrap:wrap;gap:0.75rem;margin-bottom:0.75rem;">
+      <div class="col" style="max-width:320px;">
+        <label for="overlay-select">PCA overlay</label>
+        <select id="overlay-select">
+          <option value="">— Subtype only —</option>
+        </select>
+      </div>
+      <div class="col" style="max-width:180px;">
+        <label for="opacity-range">Point opacity</label>
+        <input type="range" id="opacity-range" min="10" max="100" value="55" style="width:100%;">
+      </div>
+    </div>
+
+    <!-- Side-by-side plots — capped at 420px each so they stay compact -->
+    <div class="row" style="align-items:flex-start;gap:1.25rem;justify-content:center;">
+      <div class="col" style="max-width:560px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.4rem;flex-wrap:wrap;gap:0.5rem;">
+          <div style="font-size:0.8rem;font-weight:600;color:var(--muted);">PCA — Subtype Landscape</div>
+          <div class="toggle-row" style="margin-bottom:0;">
+            <span style="font-size:0.8rem;align-self:center;margin-right:0.25rem;color:var(--muted);">Show:</span>
+            <button class="toggle-btn low active"  data-cluster="Low"          onclick="toggleCluster('Low')">Low</button>
+            <button class="toggle-btn int active"  data-cluster="Intermediate" onclick="toggleCluster('Intermediate')">Intermediate</button>
+            <button class="toggle-btn high active" data-cluster="High"         onclick="toggleCluster('High')">High-risk</button>
+          </div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:0.5rem;">
+          <div id="pca-legend"></div>
+          <div style="flex:1;min-width:0;"><div id="pca-plot"><div class="loading">Loading patient data…</div></div></div>
+        </div>
+        <p style="font-size:0.72rem;color:var(--muted);margin-top:0.4rem;">
+          PC1 <span id="pc1-var">–</span>% variance &bull; PC2 <span id="pc2-var">–</span>% variance &bull;
+          n = 2,067 &bull; 33 quantitative variables
+        </p>
+      </div>
+      <div class="col" style="max-width:420px;">
+        <div style="font-size:0.8rem;font-weight:600;color:var(--muted);margin-bottom:0.4rem;">
+          Kaplan-Meier Survival — All-cause Mortality
+        </div>
+        <div id="surv-plot"><div class="loading">Loading survival data…</div></div>
+        <p style="font-size:0.72rem;color:var(--muted);margin-top:0.4rem;">
+          Time from center admission &bull; Shaded bands = 95% CI &bull;
+          Boston University Center for Amyloidosis
+        </p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- =====================================================================
+     CALCULATOR PAGE
+====================================================================== -->
+<div id="page-calculator" class="page">
+  <div class="row">
+    <div class="col">
+      <div class="card">
+        <h2>Patient Subtype Calculator</h2>
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:1rem;">
+          Enter laboratory values to estimate the probability of belonging to each AL amyloidosis
+          subtype. The model uses 8 clinical measurements (XGBoost, 5-fold CV accuracy: <span id="cv-acc">–</span>).
+          Leave fields blank to use cohort medians.
+        </p>
+        <div class="calc-grid" id="calc-fields"></div>
+        <div style="margin-top:1.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+          <button class="btn-primary" id="calc-btn" onclick="runCalculator()" disabled>
+            Predict Subtype
+          </button>
+          <button class="btn-primary" style="background:var(--muted);" onclick="clearCalculator()">
+            Clear
+          </button>
+          <span id="calc-status">Loading model…</span>
+        </div>
+      </div>
+
+      <div class="card" id="result-card" style="display:none;">
+        <h2>Prediction Result</h2>
+        <div id="result-bars"></div>
+        <div id="result-callout"></div>
+      </div>
+    </div>
+
+    <div class="col" style="max-width:480px;">
+      <div class="card" style="height:100%;">
+        <h2>Survival Reference</h2>
+        <p style="font-size:0.82rem;color:var(--muted);margin-bottom:0.75rem;">
+          Survival curves for the full cohort by subtype. Your predicted subtype is highlighted.
+        </p>
+        <div id="calc-surv-plot"><div class="loading">Loading…</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =====================================================================
+     ABOUT PAGE
+====================================================================== -->
+<div id="page-about" class="page">
+  <div class="card" style="max-width:780px;">
+    <h2>About This Tool</h2>
+    <p style="margin-bottom:1rem;">
+      This interactive explorer accompanies the published manuscript:
+    </p>
+    <blockquote style="border-left:4px solid var(--accent);padding:0.75rem 1rem;background:#f1f3f5;border-radius:4px;font-size:0.9rem;margin-bottom:1rem;">
+      Anand S et al. <em>Subtypes of AL Amyloidosis and Cumulative Incidence of Mortality and ESKD.</em>
+      <strong>American Journal of Hematology</strong>, 2023.
+      <a href="https://onlinelibrary.wiley.com/doi/10.1002/ajh.27472" target="_blank">doi:10.1002/ajh.27472</a>
+    </blockquote>
+
+    <h2 style="margin-top:1.5rem;">Methods Summary</h2>
+    <ul style="font-size:0.9rem;padding-left:1.25rem;margin-top:0.5rem;line-height:1.8;">
+      <li>2,067 AL amyloidosis patients from the Boston University Center for Amyloidosis</li>
+      <li>Unsupervised clustering via Consensus Clustering Plus on 33 quantitative laboratory variables</li>
+      <li>Three subtypes identified: <strong style="color:var(--low)">Low-risk</strong>, <strong style="color:var(--int)">Intermediate</strong>, <strong style="color:var(--high)">High-risk</strong></li>
+      <li>Subtype prediction model: XGBoost trained on 8 clinical measurements (5-fold CV acc ≈ 82%)</li>
+      <li>Survival: Kaplan-Meier with log-rank testing; Cox proportional hazards models</li>
+    </ul>
+
+    <h2 style="margin-top:1.5rem;">Staging Systems Shown</h2>
+    <ul style="font-size:0.9rem;padding-left:1.25rem;margin-top:0.5rem;line-height:1.8;">
+      <li><strong>Mayo 2004</strong> cardiac staging: based on troponin T and BNP thresholds</li>
+      <li><strong>BU (BNP-based)</strong> cardiac staging: Boston University BNP-based cardiac staging</li>
+      <li><strong>Palladini</strong> renal staging: based on eGFR and proteinuria</li>
+    </ul>
+
+    <h2 style="margin-top:1.5rem;">Data &amp; Code</h2>
+    <p style="font-size:0.9rem;margin-top:0.5rem;">
+      All analysis code is available at
+      <a href="https://github.com/shankara-a/amyloidosis_bmc_2023" target="_blank">
+        github.com/shankara-a/amyloidosis_bmc_2023
+      </a>.
+      Patient-level data is not published to protect privacy.
+      The prediction model runs entirely in your browser — no data is transmitted.
+    </p>
+
+    <h2 style="margin-top:1.5rem;">Disclaimer</h2>
+    <p style="font-size:0.85rem;margin-top:0.5rem;color:var(--muted);">
+      This tool is for research and educational purposes only. It is not a clinical decision aid
+      and should not be used to guide patient care.
+    </p>
+  </div>
+</div>
+
+<footer>
+  Anand et al., AJH 2023 &bull;
+  Boston University Center for Amyloidosis &bull;
+  <a href="https://github.com/shankara-a/amyloidosis_bmc_2023" target="_blank">GitHub</a>
+</footer>
+
+<script>
+// ============================================================
+// State
+// ============================================================
+let pcaData    = null;
+let survData   = null;
+let modelMeta  = null;
+let onnxSession = null;
+let visibleClusters = new Set(["Low", "Intermediate", "High"]);
+let pcaRendered = false;
+
+const CLUSTER_COLORS = { Low: "#2ca02c", Intermediate: "#ff7f0e", High: "#d62728" };
+const CLUSTER_ORDER  = ["Low", "Intermediate", "High"];
+const CLUSTER_LABELS = { Low: "Low-risk", Intermediate: "Intermediate", High: "High-risk" };
+
+// Staging color scheme matching the published figures
+const STAGING_COLORS = {
+  "stage i":   "#2ca02c", "stage I":   "#2ca02c", "Stage I":   "#2ca02c",
+  "stage ii":  "#ff7f0e", "stage II":  "#ff7f0e", "Stage II":  "#ff7f0e",
+  "stage iii": "#d62728", "stage III": "#d62728", "Stage III": "#d62728",
+  "stage iiib":"#9467bd", "stage IIIb":"#9467bd", "Stage IIIb":"#9467bd",
+};
+const STAGING_KEYS = new Set([
+  "Mayo__2004_cardiac_biomarker_staging",
+  "BU__BNP_based__cardiac_staging",
+  "Renal Stage (Palladini)",
+]);
+function stagingColor(val) {
+  return STAGING_COLORS[val] ?? STAGING_COLORS[val?.toLowerCase()] ?? "#aaaaaa";
+}
+
+// ============================================================
+// Navigation
+// ============================================================
+function showPage(name) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+  document.getElementById("page-" + name).classList.add("active");
+  event.currentTarget.classList.add("active");
+
+  if (name === "pca" && pcaData && !pcaRendered) renderPCA();
+  if (name === "calculator" && survData) renderCalcSurvival(null);
+}
+
+// ============================================================
+// Load all data on startup
+// ============================================================
+async function init() {
+  try {
+    const [pca, surv, meta] = await Promise.all([
+      fetch("data/pca_data.json").then(r => r.json()),
+      fetch("data/survival.json").then(r => r.json()),
+      fetch("data/model_meta.json").then(r => r.json()),
+    ]);
+    pcaData   = pca;
+    survData  = surv;
+    modelMeta = meta;
+
+    buildOverlaySelect();
+    buildCalcFields();
+    document.getElementById("cv-acc").textContent =
+      (modelMeta.cv_accuracy * 100).toFixed(1) + "%";
+
+    // Both plots are on the active page — render immediately
+    renderPCA();
+    renderSurvival();
+
+    // Load ONNX model
+    loadONNX();
+  } catch (err) {
+    console.error("Data load error:", err);
+  }
+}
+
+// ============================================================
+// PCA Explorer
+// ============================================================
+function buildOverlaySelect() {
+  const sel = document.getElementById("overlay-select");
+
+  const STAGING_ORDER = [
+    "Mayo__2004_cardiac_biomarker_staging",
+    "BU__BNP_based__cardiac_staging",
+    "Renal Stage (Palladini)",
+  ];
+
+  const staging = STAGING_ORDER
+    .map(k => pcaData.overlay_columns.find(c => c.key === k))
+    .filter(Boolean);
+  const rest = pcaData.overlay_columns.filter(c => !STAGING_KEYS.has(c.key));
+
+  const addOpt = col => {
+    const opt = document.createElement("option");
+    opt.value = col.key;
+    opt.textContent = col.label;
+    if (col.type === "categorical") opt.textContent += " ★";
+    sel.appendChild(opt);
+  };
+
+  staging.forEach(addOpt);
+  if (rest.length) {
+    const divider = document.createElement("option");
+    divider.disabled = true;
+    divider.textContent = "──────────────";
+    sel.appendChild(divider);
+  }
+  rest.forEach(addOpt);
+
+  sel.addEventListener("change", renderPCA);
+  document.getElementById("opacity-range").addEventListener("input", renderPCA);
+}
+
+function toggleCluster(c) {
+  const btn = document.querySelector(`.toggle-btn[data-cluster="${c}"]`);
+  if (visibleClusters.has(c)) { visibleClusters.delete(c); btn.classList.remove("active"); }
+  else { visibleClusters.add(c); btn.classList.add("active"); }
+  renderPCA();
+}
+
+function renderPCA() {
+  if (!pcaData) return;
+  const overlayKey = document.getElementById("overlay-select").value;
+  const opacity    = parseInt(document.getElementById("opacity-range").value) / 100;
+
+  document.getElementById("pc1-var").textContent =
+    (pcaData.variance_explained.pc1 * 100).toFixed(1);
+  document.getElementById("pc2-var").textContent =
+    (pcaData.variance_explained.pc2 * 100).toFixed(1);
+
+  const overlayCfg = overlayKey
+    ? pcaData.overlay_columns.find(c => c.key === overlayKey)
+    : null;
+
+  const traces = [];
+
+  if (!overlayCfg) {
+    // Color by cluster
+    CLUSTER_ORDER.filter(c => visibleClusters.has(c)).forEach(cluster => {
+      const pts = pcaData.patients.filter(p => p.cluster === cluster);
+      traces.push({
+        type: "scattergl",
+        mode: "markers",
+        name: CLUSTER_LABELS[cluster],
+        x: pts.map(p => p.pc1),
+        y: pts.map(p => p.pc2),
+        marker: {
+          color: CLUSTER_COLORS[cluster],
+          size: 5,
+          opacity,
+          line: { width: 0 },
+        },
+        text: pts.map(p => `Subtype: ${p.cluster}`),
+        hovertemplate: "%{text}<br>PC1: %{x:.2f}, PC2: %{y:.2f}<extra></extra>",
+      });
+    });
+
+  } else if (overlayCfg.type === "continuous") {
+    // One trace per cluster, colored by continuous value
+    CLUSTER_ORDER.filter(c => visibleClusters.has(c)).forEach(cluster => {
+      const pts = pcaData.patients.filter(p =>
+        p.cluster === cluster && p[overlayKey] !== null && p[overlayKey] !== undefined
+      );
+      const vals = pts.map(p => p[overlayKey]);
+      const allVals = pcaData.patients
+        .map(p => p[overlayKey]).filter(v => v !== null);
+      const p5  = quantile(allVals, 0.05);
+      const p95 = quantile(allVals, 0.95);
+
+      traces.push({
+        type: "scattergl",
+        mode: "markers",
+        name: CLUSTER_LABELS[cluster],
+        x: pts.map(p => p.pc1),
+        y: pts.map(p => p.pc2),
+        marker: {
+          color: vals,
+          colorscale: "Viridis",
+          cmin: p5, cmax: p95,
+          size: 5,
+          opacity,
+          showscale: cluster === CLUSTER_ORDER.find(c => visibleClusters.has(c)),
+          colorbar: { title: { text: overlayCfg.label, side: "right" }, thickness: 14, len: 0.6 },
+          line: { width: 0 },
+        },
+        text: pts.map(p =>
+          `Subtype: ${p.cluster}<br>${overlayCfg.label}: ${p[overlayKey]}`),
+        hovertemplate: "%{text}<br>PC1: %{x:.2f}, PC2: %{y:.2f}<extra></extra>",
+      });
+    });
+
+  } else {
+    // Categorical overlay — one trace per category value, shape by cluster
+    const SHAPES = { Low: "circle", Intermediate: "diamond", High: "square" };
+    const isStaging = STAGING_KEYS.has(overlayKey);
+    const catVals = [...new Set(
+      pcaData.patients.map(p => p[overlayKey]).filter(v => v !== null)
+    )].sort();
+    const palette = [
+      "#1f77b4","#aec7e8","#ffbb78","#2ca02c","#98df8a",
+      "#d62728","#ff9896","#9467bd","#c5b0d5","#8c564b",
+      "#c49c94","#e377c2","#f7b6d2","#7f7f7f","#bcbd22","#17becf",
+    ];
+    const colorFor = (val, vi) => isStaging ? stagingColor(val) : palette[vi % palette.length];
+
+    catVals.forEach((val, vi) => {
+      CLUSTER_ORDER.filter(c => visibleClusters.has(c)).forEach(cluster => {
+        const pts = pcaData.patients.filter(p =>
+          p.cluster === cluster && p[overlayKey] === val
+        );
+        if (!pts.length) return;
+        traces.push({
+          type: "scattergl",
+          mode: "markers",
+          name: `${val} (${CLUSTER_LABELS[cluster]})`,
+          legendgroup: val,
+          showlegend: cluster === CLUSTER_ORDER.find(c => visibleClusters.has(c)),
+          x: pts.map(p => p.pc1),
+          y: pts.map(p => p.pc2),
+          marker: {
+            color: colorFor(val, vi),
+            symbol: SHAPES[cluster],
+            size: 6, opacity,
+            line: { width: 0.5, color: "rgba(0,0,0,0.3)" },
+          },
+          text: pts.map(p =>
+            `Subtype: ${p.cluster}<br>${overlayCfg.label}: ${p[overlayKey]}`),
+          hovertemplate: "%{text}<br>PC1: %{x:.2f}, PC2: %{y:.2f}<extra></extra>",
+        });
+      });
+    });
+  }
+
+  const layout = {
+    xaxis: { title: `PC1 (${(pcaData.variance_explained.pc1*100).toFixed(1)}%)`,
+             zeroline: false, gridcolor: "#ebebeb" },
+    yaxis: { title: `PC2 (${(pcaData.variance_explained.pc2*100).toFixed(1)}%)`,
+             zeroline: false, gridcolor: "#ebebeb",
+             scaleanchor: "x", scaleratio: 1 },
+    plot_bgcolor: "#fafafa",
+    paper_bgcolor: "white",
+    margin: { t: 20, r: 20, b: 50, l: 55 },
+    showlegend: false,
+    hovermode: "closest",
+  };
+
+  Plotly.react("pca-plot", traces, layout, { responsive: true, displayModeBar: false });
+  buildPcaLegend(overlayCfg);
+  pcaRendered = true;
+}
+
+function buildPcaLegend(overlayCfg) {
+  const el = document.getElementById("pca-legend");
+  el.innerHTML = "";
+
+  const addSection = label => {
+    const s = document.createElement("div");
+    s.className = "leg-section";
+    s.textContent = label;
+    el.appendChild(s);
+  };
+  const addItem = (color, label, circle = true) => {
+    el.innerHTML += `<div class="leg-item">
+      <span class="leg-swatch${circle ? " circle" : ""}" style="background:${color}"></span>
+      <span>${label}</span>
+    </div>`;
+  };
+
+  if (!overlayCfg) {
+    // Cluster-only mode
+    addSection("Subtype");
+    CLUSTER_ORDER.forEach(c => addItem(CLUSTER_COLORS[c], CLUSTER_LABELS[c]));
+
+  } else if (overlayCfg.type === "categorical") {
+    // Category values coloured, cluster indicated by shape
+    const catVals = [...new Set(
+      pcaData.patients.map(p => p[overlayCfg.key]).filter(v => v !== null)
+    )].sort();
+    const pal = [
+      "#1f77b4","#aec7e8","#ffbb78","#2ca02c","#98df8a",
+      "#d62728","#ff9896","#9467bd","#c5b0d5","#8c564b",
+      "#c49c94","#e377c2","#f7b6d2","#7f7f7f","#bcbd22","#17becf",
+    ];
+    const isStaging = STAGING_KEYS.has(overlayCfg.key);
+    addSection(overlayCfg.label);
+    catVals.forEach((val, i) => {
+      const color = isStaging ? stagingColor(val) : pal[i % pal.length];
+      addItem(color, val, false);
+    });
+
+  } else {
+    // Continuous — colorbar inside plot handles it; just label the overlay
+    addSection("Overlay");
+    el.innerHTML += `<div style="font-size:0.78rem;color:var(--text);line-height:1.4;">${overlayCfg.label}<br><span style="color:var(--muted);font-size:0.72rem;">Viridis scale<br>(5th–95th pct)</span></div>`;
+  }
+}
+
+// ============================================================
+// Survival Curves
+// ============================================================
+function buildSurvStats() {
+  const el = document.getElementById("surv-stats");
+  CLUSTER_ORDER.forEach(c => {
+    const d = survData[c];
+    el.innerHTML += `
+      <div class="stat-box ${c.toLowerCase().replace('intermediate','int')}">
+        <div class="val">${d.n.toLocaleString()}</div>
+        <div class="lbl">${CLUSTER_LABELS[c]} patients</div>
+        <div class="lbl" style="margin-top:0.3rem;">10-yr survival: <strong>${(d.survival_10yr*100).toFixed(1)}%</strong></div>
+      </div>`;
+  });
+}
+
+function renderSurvival(highlightCluster) {
+  if (!survData) return;
+  const traces = [];
+
+  CLUSTER_ORDER.forEach(cluster => {
+    const d      = survData[cluster];
+    const color  = CLUSTER_COLORS[cluster];
+    const isHigh = highlightCluster === cluster;
+    const alpha  = highlightCluster ? (isHigh ? 1 : 0.25) : 1;
+
+    // CI band
+    traces.push({
+      type: "scatter", mode: "lines",
+      x: [...d.timeline, ...d.timeline.slice().reverse()],
+      y: [...d.ci_upper, ...d.ci_lower.slice().reverse()],
+      fill: "toself",
+      fillcolor: hexToRgba(color, 0.12 * alpha),
+      line: { width: 0 },
+      showlegend: false,
+      hoverinfo: "skip",
+    });
+    // Main curve
+    traces.push({
+      type: "scatter", mode: "lines",
+      name: `${CLUSTER_LABELS[cluster]} (n=${d.n})`,
+      x: d.timeline, y: d.survival,
+      line: {
+        color: hexToRgba(color, alpha),
+        width: isHigh ? 3 : 2,
+        dash: isHigh ? "solid" : "solid",
+      },
+      hovertemplate: `${CLUSTER_LABELS[cluster]}<br>Time: %{x:.1f} yr<br>Survival: %{y:.1%}<extra></extra>`,
+    });
+  });
+
+  const layout = {
+    xaxis: { title: "Years from admission", range: [0, 15], gridcolor: "#ebebeb" },
+    yaxis: { title: "Survival probability", range: [0, 1.02],
+             tickformat: ".0%", gridcolor: "#ebebeb" },
+    plot_bgcolor: "#fafafa",
+    paper_bgcolor: "white",
+    margin: { t: 20, r: 20, b: 50, l: 55 },
+    showlegend: true,
+    legend: { x: 0.99, xanchor: "right", y: 0.99 },
+    hovermode: "x unified",
+  };
+
+  const target = highlightCluster ? "calc-surv-plot" : "surv-plot";
+  Plotly.react(target, traces, layout, { responsive: true, displayModeBar: false });
+}
+
+function renderCalcSurvival(highlight) { renderSurvival(highlight); }
+
+// ============================================================
+// Calculator
+// ============================================================
+function buildCalcFields() {
+  const grid = document.getElementById("calc-fields");
+  if (!modelMeta) return;
+  modelMeta.features.forEach(f => {
+    const div = document.createElement("div");
+    div.className = "calc-field";
+    div.innerHTML = `
+      <label for="inp-${f.key}">${f.label}</label>
+      <input type="number" id="inp-${f.key}" step="any"
+             placeholder="Median: ${f.median}" />
+      <div class="hint">Cohort median: ${f.median}</div>`;
+    grid.appendChild(div);
+  });
+}
+
+async function loadONNX() {
+  try {
+    ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/";
+    onnxSession = await ort.InferenceSession.create("model/subgroup_model.onnx");
+    document.getElementById("calc-btn").disabled = false;
+    document.getElementById("calc-status").textContent = "Model ready.";
+  } catch (err) {
+    document.getElementById("calc-status").textContent =
+      "Model failed to load: " + err.message;
+    console.error(err);
+  }
+}
+
+async function runCalculator() {
+  if (!onnxSession || !modelMeta) return;
+
+  const vals = modelMeta.features.map(f => {
+    const el  = document.getElementById("inp-" + f.key);
+    const raw = parseFloat(el.value);
+    return isNaN(raw) ? f.median : raw;
+  });
+
+  // Build float32 input tensor — model includes imputer+scaler internally
+  const tensor = new ort.Tensor("float32", Float32Array.from(vals), [1, vals.length]);
+  let results;
+  try {
+    results = await onnxSession.run({ float_input: tensor });
+  } catch (err) {
+    document.getElementById("calc-status").textContent = "Inference error: " + err.message;
+    return;
+  }
+
+  // Model outputs: label (int64) and probabilities (float)
+  // probabilities: [P(Low), P(Intermediate), P(High)]
+  const probs = Array.from(results.probabilities.data);
+  showResult(probs);
+}
+
+function showResult(probs) {
+  // probs[0]=Low, probs[1]=Intermediate, probs[2]=High
+  const classes = modelMeta.classes;
+  const maxIdx  = probs.indexOf(Math.max(...probs));
+  const bestClass = classes[maxIdx];
+  const clsKey    = bestClass === "Intermediate" ? "int" : bestClass.toLowerCase();
+
+  const barsEl = document.getElementById("result-bars");
+  barsEl.innerHTML = "";
+  classes.forEach((cls, i) => {
+    const pct = (probs[i] * 100).toFixed(1);
+    const k   = cls === "Intermediate" ? "int" : cls.toLowerCase();
+    barsEl.innerHTML += `
+      <div class="result-row">
+        <div class="result-label">${CLUSTER_LABELS[cls]}</div>
+        <div class="result-bar-bg">
+          <div class="result-bar ${k}" style="width:${pct}%">${pct}%</div>
+        </div>
+      </div>`;
+  });
+
+  const surv10 = {};
+  Object.keys(survData).forEach(c => {
+    surv10[c] = (survData[c].survival_10yr * 100).toFixed(1) + "%";
+  });
+  const descriptions = {
+    Low: `This patient's values are most consistent with the <strong>Low-risk subtype</strong>, `
+       + `which had a 10-year survival of ${surv10["Low"]} and the most favorable prognosis in the study cohort.`,
+    Intermediate: `This patient's values are most consistent with the <strong>Intermediate subtype</strong>, `
+       + `with a 10-year survival of ${surv10["Intermediate"]} and a prognosis between the Low and High-risk groups.`,
+    High: `This patient's values are most consistent with the <strong>High-risk subtype</strong>, `
+       + `which had a 10-year survival of ${surv10["High"]} and the least favorable prognosis in the study cohort.`,
+  };
+
+  document.getElementById("result-callout").innerHTML = `
+    <div class="result-callout ${clsKey}">
+      <strong>Most likely: ${CLUSTER_LABELS[bestClass]}</strong> (${(probs[maxIdx]*100).toFixed(1)}% probability)<br>
+      <span style="font-size:0.85rem;margin-top:0.3rem;display:block;">${descriptions[bestClass]}</span>
+    </div>`;
+
+  document.getElementById("result-card").style.display = "block";
+  document.getElementById("calc-status").textContent = "";
+
+  // Highlight the predicted class in the survival plot
+  renderCalcSurvival(bestClass);
+}
+
+function clearCalculator() {
+  modelMeta?.features.forEach(f => {
+    const el = document.getElementById("inp-" + f.key);
+    if (el) el.value = "";
+  });
+  document.getElementById("result-card").style.display = "none";
+  document.getElementById("calc-status").textContent = "Model ready.";
+  renderCalcSurvival(null);
+}
+
+// ============================================================
+// Helpers
+// ============================================================
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function quantile(arr, q) {
+  const sorted = [...arr].sort((a, b) => a - b);
+  const pos = (sorted.length - 1) * q;
+  const lo = Math.floor(pos), hi = Math.ceil(pos);
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+}
+
+// ============================================================
+// Boot
+// ============================================================
+window.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>
