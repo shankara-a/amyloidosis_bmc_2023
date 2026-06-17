@@ -162,8 +162,17 @@ data/raw/AL dataset for machine learning analysis.xlsx
 .gitignore
 
 tables/*
-data
+/data
 figures/
 
 _*.ipynb
 _*
+
+# macOS metadata
+.DS_Store
+
+# Untracked notebooks with PHI in outputs — do not commit without clearing outputs first
+01c_treatments_explore.ipynb
+
+# Temporary Python venv used for web data export (not part of repo)
+/tmp/amyloid_venv

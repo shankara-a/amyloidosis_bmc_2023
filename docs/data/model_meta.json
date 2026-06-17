@@ -1,0 +1,79 @@
+{
+  "features": [
+    {
+      "key": "albumin",
+      "col": "Albumin",
+      "label": "Albumin (g/dL)",
+      "mean": 3.2468,
+      "std": 0.835,
+      "median": 3.3
+    },
+    {
+      "key": "bnp",
+      "col": "BNP",
+      "label": "BNP (pg/mL)",
+      "mean": 464.7136,
+      "std": 786.0358,
+      "median": 175.0
+    },
+    {
+      "key": "diastolic_bp",
+      "col": "Diastolic_BP_sitting",
+      "label": "Diastolic BP (mmHg)",
+      "mean": 75.9574,
+      "std": 11.1807,
+      "median": 76.0
+    },
+    {
+      "key": "esr",
+      "col": "Sed_rate",
+      "label": "ESR (mm/hr)",
+      "mean": 49.3227,
+      "std": 34.6678,
+      "median": 43.0
+    },
+    {
+      "key": "systolic_bp",
+      "col": "Systolic_BP_sitting",
+      "label": "Systolic BP (mmHg)",
+      "mean": 121.1959,
+      "std": 20.6583,
+      "median": 120.0
+    },
+    {
+      "key": "tibc",
+      "col": "TIBC",
+      "label": "TIBC (mcg/dL)",
+      "mean": 267.3885,
+      "std": 69.4748,
+      "median": 268.0
+    },
+    {
+      "key": "troponin",
+      "col": "Troponin",
+      "label": "Troponin (ng/mL)",
+      "mean": 0.155,
+      "std": 0.3903,
+      "median": 0.053
+    },
+    {
+      "key": "proteinuria",
+      "col": "X24_hr_UTP",
+      "label": "Proteinuria (mg/24h)",
+      "mean": 4039.0784,
+      "std": 6081.7766,
+      "median": 1785.0
+    }
+  ],
+  "classes": [
+    "Low",
+    "Intermediate",
+    "High"
+  ],
+  "cv_accuracy": 0.817,
+  "cluster_colors": {
+    "Low": "#2ca02c",
+    "Intermediate": "#ff7f0e",
+    "High": "#d62728"
+  }
+}
