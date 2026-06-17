@@ -6,6 +6,16 @@ Work is completed with the Boston University Center for Amyloidosis.
 
 Contact: Shankara Anand (shankara.k.anand@gmail.com)
 
+## Interactive Web Explorer
+
+An interactive web app is available at:
+**https://shankara-a.github.io/amyloidosis_bmc_2023/**
+
+Features:
+- **PCA Explorer** — visualize patient subgroups in 2D with lab value, staging, and demographic overlays
+- **Survival Curves** — Kaplan-Meier curves for all-cause mortality by subgroup, displayed alongside the PCA
+- **Subtype Calculator** — enter 8 lab values to predict a patient's risk subgroup using the abbreviated ML model (runs fully in-browser, no data uploaded)
+
 ## Repoistory Contents
 
 All code to reproduce analysis + figures.
